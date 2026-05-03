@@ -239,7 +239,10 @@ local function filter_rows(rows, server)
     local filtered = {}
     for _, row in ipairs(rows) do
         if type(row) == 'table' and row.nvim_server == server then
-            table.insert(filtered, row)
+            local bufnr = row_bufnr(row)
+            if not bufnr or vim.api.nvim_buf_is_valid(bufnr) then
+                table.insert(filtered, row)
+            end
         end
     end
 
@@ -455,7 +458,8 @@ function M.delete_agent()
     end
 
     vim.api.nvim_buf_delete(bufnr, { force = true })
-    M.refresh({ watch = false })
+    stop_watch()
+    M.refresh()
 end
 
 local function terminal_command(parts)
