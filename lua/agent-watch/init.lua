@@ -101,6 +101,7 @@ end
 local function set_watch_statusline(win)
     if is_target_window(win) then
         vim.wo[win].statusline = watch_statusline
+        vim.wo[win].wrap = false
     end
 end
 
