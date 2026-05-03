@@ -7,7 +7,7 @@ local defaults = {
     watch_interval = 1000,
     refresh_interval = nil,
     default_agent = 'codex',
-    available_agents = { 'codex', 'cursor', 'agent', 'claude' },
+    available_agents = { 'codex', 'agent', 'claude' },
     commands = {
         watch = 'AgentWatch',
         toggle = 'AgentWatchToggle',
@@ -29,7 +29,7 @@ local state = {
 
 local stop_watch
 local watch_statusline = 'Agent Watch  <CR>: open  a: add  r: rename  dd: delete'
-local supported_agents = { 'codex', 'cursor', 'agent', 'claude' }
+local supported_agents = { 'codex', 'agent', 'claude' }
 local supported_agent_set = {}
 for _, agent in ipairs(supported_agents) do
     supported_agent_set[agent] = true
@@ -54,17 +54,14 @@ local function validate_agent_config(opts)
     end
 
     if type(configured_agents) ~= 'table' or vim.tbl_isempty(configured_agents) then
-        notify(
-            'Invalid available_agents config. Use a non-empty list of: codex, cursor, agent, claude.',
-            vim.log.levels.ERROR
-        )
+        notify('Invalid available_agents config. Use a non-empty list of: codex, agent, claude.', vim.log.levels.ERROR)
         configured_agents = vim.deepcopy(defaults.available_agents)
     end
 
     for _, agent in ipairs(configured_agents) do
         if not supported_agent_set[agent] then
             notify(
-                'Unknown available_agents value "' .. tostring(agent) .. '". Allowed: codex, cursor, agent, claude.',
+                'Unknown available_agents value "' .. tostring(agent) .. '". Allowed: codex, agent, claude.',
                 vim.log.levels.ERROR
             )
             configured_agents = vim.deepcopy(defaults.available_agents)

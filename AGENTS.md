@@ -20,7 +20,7 @@ The plugin is loaded locally from `~/code/agent-watch-nvim`.
 ## Commands
 
 - `:AgentWatch` opens or refreshes the bottom scratch buffer for agents attached to the current Neovim server.
-- `:AgentWatchLaunch <title> [codex|cursor|agent|claude] [args...]` opens a terminal and runs `agent-watch launch`.
+- `:AgentWatchLaunch <title> [codex|agent|claude] [args...]` opens a terminal and runs `agent-watch launch`.
 - `:AgentWatchRename [title]` renames the selected row with `agent-watch rename <id> <title>`.
 
 `AgentWatchLaunch` must always pass:
@@ -83,7 +83,7 @@ nvim --headless -u NONE -i NONE -c "set shadafile=NONE" -c "set rtp+=/Users/raff
 
 - `:AgentWatch` opens a bottom buffer and shows only agents for the current Neovim server.
 - `:AgentWatchLaunch "Some title"` launches the configured default agent.
-- `:AgentWatchLaunch "Some title" cursor` launches Cursor through the CLI.
+- `:AgentWatchLaunch "Some title" agent` launches through the `agent` backend.
 - `<CR>` on an agent row jumps to its terminal buffer.
 - `r` on an agent row renames the tracked agent title.
 - `dd` on an agent row deletes that terminal buffer and refreshes the list.
