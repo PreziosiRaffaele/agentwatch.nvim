@@ -24,6 +24,7 @@ local state = {
 }
 
 local stop_watch
+local watch_statusline = 'Agent Watch  <CR> open  dd delete'
 
 local function notify(message, level)
     vim.notify(message, level or vim.log.levels.INFO, { title = 'agent-watch.nvim' })
@@ -88,10 +89,17 @@ local function visible_watch_window()
     return nil
 end
 
+local function set_watch_statusline(win)
+    if is_target_window(win) then
+        vim.wo[win].statusline = watch_statusline
+    end
+end
+
 local function ensure_watch_window()
     if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
         local win = visible_watch_window()
         if win then
+            set_watch_statusline(win)
             return state.buf, state.win
         end
 
@@ -99,6 +107,7 @@ local function ensure_watch_window()
         state.win = vim.api.nvim_get_current_win()
         vim.api.nvim_win_set_buf(state.win, state.buf)
         vim.api.nvim_win_set_height(state.win, tonumber(state.opts.height))
+        set_watch_statusline(state.win)
         return state.buf, state.win
     end
 
@@ -107,6 +116,7 @@ local function ensure_watch_window()
     state.buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_win_set_buf(state.win, state.buf)
     vim.api.nvim_win_set_height(state.win, tonumber(state.opts.height))
+    set_watch_statusline(state.win)
 
     vim.bo[state.buf].buftype = 'nofile'
     vim.bo[state.buf].bufhidden = 'hide'
