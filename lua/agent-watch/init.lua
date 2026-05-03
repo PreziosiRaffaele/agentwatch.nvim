@@ -143,8 +143,11 @@ local function set_watch_lines(lines, rows_by_line, opts)
     rows_by_line = rows_by_line or {}
 
     local cursor_line = 1
+    local cursor_col = 0
     if is_target_window(win) then
-        cursor_line = vim.api.nvim_win_get_cursor(win)[1]
+        local cursor = vim.api.nvim_win_get_cursor(win)
+        cursor_line = cursor[1]
+        cursor_col = cursor[2]
     end
 
     vim.bo[buf].modifiable = true
@@ -162,7 +165,9 @@ local function set_watch_lines(lines, rows_by_line, opts)
             end
         end
 
-        vim.api.nvim_win_set_cursor(win, { math.min(cursor_line, #lines), 0 })
+        local target_line = math.min(cursor_line, #lines)
+        local max_col = #(lines[target_line] or '')
+        vim.api.nvim_win_set_cursor(win, { target_line, math.min(cursor_col, max_col) })
     end
 
     state.rows_by_line = rows_by_line
