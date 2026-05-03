@@ -16,6 +16,7 @@ Titles with spaces must be quoted, for example `:AgentWatchLaunch "Fix parser" c
 Inside the `AgentWatch` buffer:
 
 - `<CR>` jumps to the selected agent terminal buffer.
+- `a` prompts for title/agent and launches a new tracked agent.
 - `r` renames the selected agent.
 - `dd` force-deletes the selected agent terminal buffer.
 - `q` closes the watch window.

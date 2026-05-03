@@ -27,11 +27,24 @@ local state = {
 }
 
 local stop_watch
-local watch_statusline = 'Agent Watch  <CR>: open  r: rename  dd: delete'
+local watch_statusline = 'Agent Watch  <CR>: open  a: add  r: rename  dd: delete'
 local supported_agents = { 'codex', 'cursor', 'agent', 'claude' }
 local supported_agent_set = {}
 for _, agent in ipairs(supported_agents) do
     supported_agent_set[agent] = true
+end
+
+local function first_nonempty(...)
+    for index = 1, select('#', ...) do
+        local value = select(index, ...)
+        if type(value) == 'string' then
+            local trimmed = vim.trim(value)
+            if trimmed ~= '' then
+                return trimmed
+            end
+        end
+    end
+    return ''
 end
 
 local function notify(message, level)
@@ -153,6 +166,7 @@ local function ensure_watch_window()
     vim.bo[state.buf].readonly = true
 
     vim.keymap.set('n', '<CR>', M.jump_to_agent, { buffer = state.buf, silent = true, desc = 'Jump to agent terminal' })
+    vim.keymap.set('n', 'a', M.prompt_launch, { buffer = state.buf, silent = true, desc = 'Add agent' })
     vim.keymap.set('n', 'r', M.rename_agent, { buffer = state.buf, silent = true, desc = 'Rename agent' })
     vim.keymap.set('n', 'dd', M.delete_agent, { buffer = state.buf, silent = true, desc = 'Delete agent terminal' })
     vim.keymap.set('n', 'q', function()
@@ -571,6 +585,28 @@ local function terminal_command(parts)
         table.insert(escaped, vim.fn.shellescape(tostring(part)))
     end
     return table.concat(escaped, ' ')
+end
+
+function M.prompt_launch()
+    vim.ui.input({ prompt = 'Agent title: ' }, function(title)
+        title = vim.trim(title or '')
+        if title == '' then
+            return
+        end
+
+        vim.ui.select(supported_agents, {
+            prompt = 'Agent type:',
+            format_item = function(agent)
+                if agent == state.opts.default_agent then
+                    return agent .. ' (default)'
+                end
+                return agent
+            end,
+        }, function(choice)
+            local agent = first_nonempty(choice, state.opts.default_agent, defaults.default_agent)
+            M.launch({ title, agent })
+        end)
+    end)
 end
 
 function M.launch(args)
