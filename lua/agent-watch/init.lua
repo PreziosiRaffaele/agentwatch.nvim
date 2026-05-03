@@ -400,6 +400,33 @@ local function selected_row()
     return state.rows_by_line[line]
 end
 
+local function open_float(bufnr, title)
+    local width  = math.floor(vim.o.columns * 0.9)
+    local height = math.floor(vim.o.lines   * 0.85)
+    local row    = math.floor((vim.o.lines   - height) / 2)
+    local col    = math.floor((vim.o.columns - width)  / 2)
+
+    vim.api.nvim_open_win(bufnr, true, {
+        relative  = 'editor',
+        width     = width,
+        height    = height,
+        row       = row,
+        col       = col,
+        border    = 'rounded',
+        style     = 'minimal',
+        title     = title and (' ' .. title .. ' ') or nil,
+        title_pos = 'center',
+    })
+
+    vim.keymap.set('t', '<C-w>q', function()
+        vim.api.nvim_win_close(0, false)
+    end, { buffer = bufnr, silent = true, desc = 'Close agent float' })
+
+    if vim.bo[bufnr].buftype == 'terminal' then
+        vim.cmd('startinsert')
+    end
+end
+
 function M.jump_to_agent()
     local row = selected_row()
     if not row then
@@ -412,16 +439,7 @@ function M.jump_to_agent()
         return
     end
 
-    local wins = vim.fn.win_findbuf(bufnr)
-    if #wins > 0 and vim.api.nvim_win_is_valid(wins[1]) then
-        vim.api.nvim_set_current_win(wins[1])
-    else
-        vim.api.nvim_set_current_buf(bufnr)
-    end
-
-    if vim.bo[bufnr].buftype == 'terminal' then
-        vim.cmd('startinsert')
-    end
+    open_float(bufnr, row.title)
 end
 
 function M.delete_agent()
@@ -474,13 +492,14 @@ function M.launch(args)
         table.insert(extra_args, args[index])
     end
 
-    vim.cmd('botright split')
-    vim.cmd('terminal')
-    local bufnr = vim.api.nvim_get_current_buf()
+    local bufnr = vim.api.nvim_create_buf(false, true)
+    open_float(bufnr, title)
+    vim.fn.termopen(vim.o.shell)
     local job_id = vim.b[bufnr].terminal_job_id
 
     if not job_id then
         notify('Could not start terminal for agent launch', vim.log.levels.ERROR)
+        vim.api.nvim_win_close(0, false)
         return
     end
 
