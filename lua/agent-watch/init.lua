@@ -9,6 +9,7 @@ local defaults = {
     commands = {
         watch = 'AgentWatch',
         launch = 'AgentWatchLaunch',
+        rename = 'AgentWatchRename',
     },
 }
 
@@ -24,7 +25,7 @@ local state = {
 }
 
 local stop_watch
-local watch_statusline = 'Agent Watch  <CR> open  dd delete'
+local watch_statusline = 'Agent Watch  <CR> open  r rename  dd delete'
 
 local function notify(message, level)
     vim.notify(message, level or vim.log.levels.INFO, { title = 'agent-watch.nvim' })
@@ -69,6 +70,14 @@ local function row_bufnr(row)
         return nil
     end
     return bufnr
+end
+
+local function row_id(row)
+    local id = get_field(row, { 'launch_id', 'id', 'agent_id' })
+    if id == '' then
+        return nil
+    end
+    return tostring(id)
 end
 
 local function is_target_window(win)
@@ -126,6 +135,7 @@ local function ensure_watch_window()
     vim.bo[state.buf].readonly = true
 
     vim.keymap.set('n', '<CR>', M.jump_to_agent, { buffer = state.buf, silent = true, desc = 'Jump to agent terminal' })
+    vim.keymap.set('n', 'r', M.rename_agent, { buffer = state.buf, silent = true, desc = 'Rename agent' })
     vim.keymap.set('n', 'dd', M.delete_agent, { buffer = state.buf, silent = true, desc = 'Delete agent terminal' })
     vim.keymap.set('n', 'q', function()
         stop_watch()
@@ -195,6 +205,7 @@ local function render_rows(rows)
     end
 
     local header = table.concat({
+        display_width('ID', 5),
         display_width('STATE', 16),
         display_width('AGENT', 10),
         display_width('TITLE', 32),
@@ -208,6 +219,7 @@ local function render_rows(rows)
 
     for _, row in ipairs(rows) do
         local line = table.concat({
+            display_width(row_id(row) or '', 5),
             display_width(get_field(row, { 'state', 'status' }), 16),
             display_width(get_field(row, { 'agent', 'agent_type', 'type' }), 10),
             display_width(get_field(row, { 'title', 'name', 'summary' }), 32),
@@ -477,6 +489,50 @@ function M.delete_agent()
     M.refresh()
 end
 
+function M.rename_agent(args)
+    local row = selected_row()
+    if not row then
+        notify('Select an agent row to rename', vim.log.levels.WARN)
+        return
+    end
+
+    local id = row_id(row)
+    if not id then
+        notify('Selected agent has no id to rename', vim.log.levels.WARN)
+        return
+    end
+
+    local function rename_to(title)
+        title = vim.trim(title or '')
+        if title == '' then
+            return
+        end
+
+        vim.system({ state.opts.cli, 'rename', id, title }, { text = true }, function(result)
+            vim.schedule(function()
+                if result.code ~= 0 then
+                    notify('agent-watch rename failed: ' .. vim.trim(result.stderr or result.stdout or ''), vim.log.levels.ERROR)
+                    return
+                end
+
+                notify('Renamed agent to "' .. title .. '"')
+                stop_watch()
+                M.refresh({ loading = false })
+            end)
+        end)
+    end
+
+    if args and args[1] then
+        rename_to(table.concat(args, ' '))
+        return
+    end
+
+    vim.ui.input({
+        prompt = 'Agent title: ',
+        default = get_field(row, { 'title', 'name', 'summary' }),
+    }, rename_to)
+end
+
 local function terminal_command(parts)
     local escaped = {}
     for _, part in ipairs(parts) do
@@ -560,6 +616,7 @@ function M.setup(opts)
 
     pcall(vim.api.nvim_del_user_command, state.opts.commands.watch)
     pcall(vim.api.nvim_del_user_command, state.opts.commands.launch)
+    pcall(vim.api.nvim_del_user_command, state.opts.commands.rename)
 
     vim.api.nvim_create_user_command(state.opts.commands.watch, M.refresh, {
         desc = 'Open or refresh Agent Watch',
@@ -571,6 +628,13 @@ function M.setup(opts)
         nargs = '*',
         complete = complete_agent,
         desc = 'Launch an agent tracked by Agent Watch',
+    })
+
+    vim.api.nvim_create_user_command(state.opts.commands.rename, function(command)
+        M.rename_agent(command.fargs)
+    end, {
+        nargs = '*',
+        desc = 'Rename the selected Agent Watch row',
     })
 end
 
