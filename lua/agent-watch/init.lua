@@ -460,20 +460,20 @@ local function selected_row()
 end
 
 local function open_float(bufnr, title)
-    local width  = math.floor(vim.o.columns * 0.9)
-    local height = math.floor(vim.o.lines   * 0.85)
-    local row    = math.floor((vim.o.lines   - height) / 2)
-    local col    = math.floor((vim.o.columns - width)  / 2)
+    local width = math.floor(vim.o.columns * 0.9)
+    local height = math.floor(vim.o.lines * 0.85)
+    local row = math.floor((vim.o.lines - height) / 2)
+    local col = math.floor((vim.o.columns - width) / 2)
 
     vim.api.nvim_open_win(bufnr, true, {
-        relative  = 'editor',
-        width     = width,
-        height    = height,
-        row       = row,
-        col       = col,
-        border    = 'rounded',
-        style     = 'minimal',
-        title     = title and (' ' .. title .. ' ') or nil,
+        relative = 'editor',
+        width = width,
+        height = height,
+        row = row,
+        col = col,
+        border = 'rounded',
+        style = 'minimal',
+        title = title and (' ' .. title .. ' ') or nil,
         title_pos = 'center',
     })
 
@@ -540,7 +540,10 @@ function M.rename_agent(args)
         vim.system({ state.opts.cli, 'rename', id, title }, { text = true }, function(result)
             vim.schedule(function()
                 if result.code ~= 0 then
-                    notify('agent-watch rename failed: ' .. vim.trim(result.stderr or result.stdout or ''), vim.log.levels.ERROR)
+                    notify(
+                        'agent-watch rename failed: ' .. vim.trim(result.stderr or result.stdout or ''),
+                        vim.log.levels.ERROR
+                    )
                     return
                 end
 

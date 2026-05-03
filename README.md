@@ -38,3 +38,17 @@ return {
 
 `height` controls the bottom `:AgentWatch` window height in lines.
 `fixed_height` controls whether the watch window keeps a fixed height (`winfixheight`).
+
+## Code quality
+
+Format Lua files with Stylua:
+
+```sh
+stylua .
+```
+
+Verify formatting (for CI/pre-commit):
+
+```sh
+stylua --check .
+```
