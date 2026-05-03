@@ -4,7 +4,8 @@ Local Neovim integration for the sibling `agent-watch` CLI.
 
 ## Commands
 
-- `:AgentWatch` opens a bottom scratch buffer showing agents attached to the current Neovim server. The view refreshes while it is visible.
+- `:AgentWatch` opens or refreshes a bottom scratch buffer showing agents attached to the current Neovim server.
+- `:AgentWatchToggle` toggles the Agent Watch window visibility. When opened, the view refreshes while it is visible.
 - `:AgentWatchLaunch <title> [codex|cursor|agent] [args...]` opens a terminal and starts an agent through `agent-watch launch`.
 - `:AgentWatchRename [title]` renames the selected agent row. Without a title, it prompts for one.
 
@@ -24,7 +25,7 @@ Inside the `AgentWatch` buffer:
 ```lua
 return {
     dir = '~/code/agent-watch-nvim',
-    cmd = { 'AgentWatch', 'AgentWatchLaunch', 'AgentWatchRename' },
+    cmd = { 'AgentWatch', 'AgentWatchToggle', 'AgentWatchLaunch', 'AgentWatchRename' },
     opts = {
         cli = vim.fn.expand('~/code/agent-watch/bin/agent-watch.js'),
         default_agent = 'codex',

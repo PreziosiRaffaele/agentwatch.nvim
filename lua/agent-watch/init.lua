@@ -9,6 +9,7 @@ local defaults = {
     default_agent = 'codex',
     commands = {
         watch = 'AgentWatch',
+        toggle = 'AgentWatchToggle',
         launch = 'AgentWatchLaunch',
         rename = 'AgentWatchRename',
     },
@@ -433,6 +434,17 @@ function M.refresh(opts)
     state.refresh_running = false
 end
 
+function M.toggle()
+    local win = visible_watch_window()
+    if win then
+        stop_watch()
+        vim.api.nvim_win_close(win, false)
+        return
+    end
+
+    M.refresh()
+end
+
 local function selected_row()
     if vim.api.nvim_get_current_buf() ~= state.buf then
         return nil
@@ -632,11 +644,16 @@ function M.setup(opts)
     state.opts.watch_interval = tonumber(interval) or defaults.watch_interval
 
     pcall(vim.api.nvim_del_user_command, state.opts.commands.watch)
+    pcall(vim.api.nvim_del_user_command, state.opts.commands.toggle)
     pcall(vim.api.nvim_del_user_command, state.opts.commands.launch)
     pcall(vim.api.nvim_del_user_command, state.opts.commands.rename)
 
     vim.api.nvim_create_user_command(state.opts.commands.watch, M.refresh, {
-        desc = 'Open or refresh Agent Watch',
+        desc = 'Open Agent Watch',
+    })
+
+    vim.api.nvim_create_user_command(state.opts.commands.toggle, M.toggle, {
+        desc = 'Toggle Agent Watch',
     })
 
     vim.api.nvim_create_user_command(state.opts.commands.launch, function(command)
