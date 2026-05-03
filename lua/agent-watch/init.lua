@@ -1,0 +1,539 @@
+local M = {}
+
+local defaults = {
+    cli = vim.fn.expand('~/code/agent-watch/bin/agent-watch.js'),
+    height = 10,
+    watch_interval = 1000,
+    refresh_interval = nil,
+    default_agent = 'codex',
+    commands = {
+        watch = 'AgentWatch',
+        launch = 'AgentWatchLaunch',
+    },
+}
+
+local state = {
+    opts = vim.deepcopy(defaults),
+    buf = nil,
+    win = nil,
+    rows_by_line = {},
+    watch_process = nil,
+    watch_server = nil,
+    watch_stdout = '',
+    refresh_running = false,
+}
+
+local stop_watch
+
+local function notify(message, level)
+    vim.notify(message, level or vim.log.levels.INFO, { title = 'agent-watch.nvim' })
+end
+
+local function ensure_server()
+    if vim.v.servername and vim.v.servername ~= '' then
+        return vim.v.servername
+    end
+
+    local ok, server = pcall(vim.fn.serverstart)
+    if not ok or not server or server == '' then
+        notify('Could not start a Neovim server for agent-watch', vim.log.levels.ERROR)
+        return nil
+    end
+
+    return server
+end
+
+local function display_width(value, width)
+    value = tostring(value or '')
+    local visible = vim.fn.strdisplaywidth(value)
+    if visible > width then
+        return vim.fn.strcharpart(value, 0, math.max(width - 3, 0)) .. '...'
+    end
+    return value .. string.rep(' ', width - visible)
+end
+
+local function get_field(row, names)
+    for _, name in ipairs(names) do
+        local value = row[name]
+        if value ~= nil and value ~= vim.NIL and value ~= '' then
+            return value
+        end
+    end
+    return ''
+end
+
+local function row_bufnr(row)
+    local bufnr = tonumber(row.nvim_terminal_bufnr)
+    if not bufnr then
+        return nil
+    end
+    return bufnr
+end
+
+local function is_target_window(win)
+    return win and vim.api.nvim_win_is_valid(win)
+end
+
+local function visible_watch_window()
+    if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then
+        return nil
+    end
+
+    local wins = vim.fn.win_findbuf(state.buf)
+    if #wins > 0 and vim.api.nvim_win_is_valid(wins[1]) then
+        state.win = wins[1]
+        return state.win
+    end
+
+    return nil
+end
+
+local function ensure_watch_window()
+    if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
+        local win = visible_watch_window()
+        if win then
+            return state.buf, state.win
+        end
+
+        vim.cmd('botright ' .. tonumber(state.opts.height) .. 'split')
+        state.win = vim.api.nvim_get_current_win()
+        vim.api.nvim_win_set_buf(state.win, state.buf)
+        vim.api.nvim_win_set_height(state.win, tonumber(state.opts.height))
+        return state.buf, state.win
+    end
+
+    vim.cmd('botright ' .. tonumber(state.opts.height) .. 'split')
+    state.win = vim.api.nvim_get_current_win()
+    state.buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_win_set_buf(state.win, state.buf)
+    vim.api.nvim_win_set_height(state.win, tonumber(state.opts.height))
+
+    vim.bo[state.buf].buftype = 'nofile'
+    vim.bo[state.buf].bufhidden = 'hide'
+    vim.bo[state.buf].swapfile = false
+    vim.bo[state.buf].filetype = 'agent-watch'
+    vim.bo[state.buf].modifiable = false
+    vim.bo[state.buf].readonly = true
+
+    vim.keymap.set('n', '<CR>', M.jump_to_agent, { buffer = state.buf, silent = true, desc = 'Jump to agent terminal' })
+    vim.keymap.set('n', 'dd', M.delete_agent, { buffer = state.buf, silent = true, desc = 'Delete agent terminal' })
+    vim.keymap.set('n', 'q', function()
+        stop_watch()
+        vim.cmd('close')
+    end, { buffer = state.buf, silent = true, desc = 'Close agent watch' })
+
+    return state.buf, state.win
+end
+
+local function set_watch_lines(lines, rows_by_line, opts)
+    opts = opts or {}
+
+    local buf
+    local win
+    if opts.open == false then
+        win = visible_watch_window()
+        if not win then
+            return false
+        end
+        buf = state.buf
+    else
+        buf, win = ensure_watch_window()
+    end
+
+    rows_by_line = rows_by_line or {}
+
+    local cursor_line = 1
+    if is_target_window(win) then
+        cursor_line = vim.api.nvim_win_get_cursor(win)[1]
+    end
+
+    vim.bo[buf].modifiable = true
+    vim.bo[buf].readonly = false
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.bo[buf].modifiable = false
+    vim.bo[buf].readonly = true
+
+    if is_target_window(win) then
+        if not rows_by_line[cursor_line] then
+            for line in pairs(rows_by_line) do
+                if line < cursor_line or not rows_by_line[cursor_line] then
+                    cursor_line = line
+                end
+            end
+        end
+
+        vim.api.nvim_win_set_cursor(win, { math.min(cursor_line, #lines), 0 })
+    end
+
+    state.rows_by_line = rows_by_line
+
+    return true
+end
+
+local function render_rows(rows)
+    local lines = {}
+    local rows_by_line = {}
+
+    if #rows == 0 then
+        table.insert(lines, 'No active agents for this Neovim server.')
+        return lines, rows_by_line
+    end
+
+    local header = table.concat({
+        display_width('STATE', 16),
+        display_width('AGENT', 10),
+        display_width('TITLE', 32),
+        display_width('REPO', 24),
+        display_width('BRANCH', 18),
+        display_width('UPDATED', 20),
+    }, '  ')
+
+    table.insert(lines, header)
+    table.insert(lines, string.rep('-', vim.fn.strdisplaywidth(header)))
+
+    for _, row in ipairs(rows) do
+        local line = table.concat({
+            display_width(get_field(row, { 'state', 'status' }), 16),
+            display_width(get_field(row, { 'agent', 'agent_type', 'type' }), 10),
+            display_width(get_field(row, { 'title', 'name', 'summary' }), 32),
+            display_width(get_field(row, { 'repo', 'repository', 'cwd' }), 24),
+            display_width(get_field(row, { 'branch', 'git_branch' }), 18),
+            display_width(get_field(row, { 'updated', 'updated_at', 'updatedAt' }), 20),
+        }, '  ')
+
+        table.insert(lines, line)
+        rows_by_line[#lines] = row
+    end
+
+    return lines, rows_by_line
+end
+
+stop_watch = function()
+    if state.watch_process then
+        pcall(function()
+            state.watch_process:kill(15)
+        end)
+        state.watch_process = nil
+    end
+    state.watch_server = nil
+    state.watch_stdout = ''
+end
+
+local function list_args(server, watch)
+    local args = {
+        state.opts.cli,
+        'list',
+        '--json',
+        '--filter',
+        'nvim_server=' .. server,
+    }
+
+    if watch then
+        vim.list_extend(args, { '--watch', '--interval', tostring(state.opts.watch_interval) })
+    end
+
+    return args
+end
+
+local function filter_rows(rows, server)
+    local filtered = {}
+    for _, row in ipairs(rows) do
+        if type(row) == 'table' and row.nvim_server == server then
+            table.insert(filtered, row)
+        end
+    end
+
+    return filtered
+end
+
+local function parse_agent_rows(stdout)
+    if stdout == nil or stdout == '' then
+        return {}
+    end
+
+    local ok, decoded = pcall(vim.json.decode, stdout)
+    if not ok then
+        error('Could not parse agent-watch JSON: ' .. tostring(decoded))
+    end
+
+    if vim.islist(decoded) then
+        return decoded
+    end
+
+    if type(decoded) == 'table' then
+        for _, key in ipairs({ 'agents', 'rows', 'items' }) do
+            if type(decoded[key]) == 'table' then
+                return decoded[key]
+            end
+        end
+    end
+
+    return {}
+end
+
+local function render_stdout(stdout, server, open)
+    local ok, rows_or_error = pcall(parse_agent_rows, stdout)
+    if not ok then
+        set_watch_lines({ rows_or_error }, {}, { open = open })
+        return
+    end
+
+    local lines, rows_by_line = render_rows(filter_rows(rows_or_error, server))
+    set_watch_lines(lines, rows_by_line, { open = open })
+end
+
+function M.refresh(opts)
+    opts = opts or {}
+    local server = ensure_server()
+    if not server then
+        return
+    end
+
+    if state.refresh_running then
+        return
+    end
+    state.refresh_running = true
+
+    local open = opts.open ~= false
+    if opts.loading ~= false then
+        set_watch_lines({ 'Loading agents...' }, {}, { open = open })
+    end
+
+    if opts.watch == false then
+        vim.system(list_args(server, false), { text = true }, function(result)
+            vim.schedule(function()
+                state.refresh_running = false
+
+                if not open and not visible_watch_window() then
+                    return
+                end
+
+                if result.code ~= 0 then
+                    set_watch_lines({
+                        'agent-watch list failed:',
+                        vim.trim(result.stderr or result.stdout or ''),
+                    }, {}, { open = open })
+                    return
+                end
+
+                render_stdout(result.stdout, server, open)
+            end)
+        end)
+        return
+    end
+
+    if state.watch_process and state.watch_server == server then
+        state.refresh_running = false
+        return
+    end
+
+    stop_watch()
+    state.watch_server = server
+
+    local process
+    process = vim.system(list_args(server, true), {
+        text = true,
+        stdout = function(_, data)
+            if not data or data == '' then
+                return
+            end
+
+            vim.schedule(function()
+                if state.watch_process ~= process then
+                    return
+                end
+
+                if not visible_watch_window() then
+                    stop_watch()
+                    return
+                end
+
+                state.watch_stdout = state.watch_stdout .. data
+                while true do
+                    local newline = state.watch_stdout:find('\n', 1, true)
+                    if not newline then
+                        break
+                    end
+
+                    local line = vim.trim(state.watch_stdout:sub(1, newline - 1))
+                    state.watch_stdout = state.watch_stdout:sub(newline + 1)
+
+                    if line ~= '' then
+                        render_stdout(line, server, false)
+                    end
+                end
+            end)
+        end,
+    }, function(result)
+        vim.schedule(function()
+            if state.watch_process ~= process then
+                return
+            end
+
+            state.refresh_running = false
+            state.watch_process = nil
+            state.watch_server = nil
+            state.watch_stdout = ''
+
+            if not open and not visible_watch_window() then
+                return
+            end
+
+            if result.code ~= 0 then
+                set_watch_lines({
+                    'agent-watch watch failed:',
+                    vim.trim(result.stderr or result.stdout or ''),
+                }, {}, { open = open })
+            end
+        end)
+    end)
+    state.watch_process = process
+    state.refresh_running = false
+end
+
+local function selected_row()
+    if vim.api.nvim_get_current_buf() ~= state.buf then
+        return nil
+    end
+
+    local line = vim.api.nvim_win_get_cursor(0)[1]
+    return state.rows_by_line[line]
+end
+
+function M.jump_to_agent()
+    local row = selected_row()
+    if not row then
+        return
+    end
+
+    local bufnr = row_bufnr(row)
+    if not bufnr or not vim.api.nvim_buf_is_loaded(bufnr) then
+        notify('Agent terminal buffer is not loaded', vim.log.levels.WARN)
+        return
+    end
+
+    local wins = vim.fn.win_findbuf(bufnr)
+    if #wins > 0 and vim.api.nvim_win_is_valid(wins[1]) then
+        vim.api.nvim_set_current_win(wins[1])
+    else
+        vim.api.nvim_set_current_buf(bufnr)
+    end
+
+    if vim.bo[bufnr].buftype == 'terminal' then
+        vim.cmd('startinsert')
+    end
+end
+
+function M.delete_agent()
+    local row = selected_row()
+    if not row then
+        return
+    end
+
+    local bufnr = row_bufnr(row)
+    if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+        notify('Agent terminal buffer is not valid', vim.log.levels.WARN)
+        return
+    end
+
+    vim.api.nvim_buf_delete(bufnr, { force = true })
+    M.refresh({ watch = false })
+end
+
+local function terminal_command(parts)
+    local escaped = {}
+    for _, part in ipairs(parts) do
+        table.insert(escaped, vim.fn.shellescape(tostring(part)))
+    end
+    return table.concat(escaped, ' ')
+end
+
+function M.launch(args)
+    local server = ensure_server()
+    if not server then
+        return
+    end
+
+    args = args or {}
+    local valid_agents = { codex = true, cursor = true, agent = true }
+    local title = args[1]
+    local agent = args[2] or state.opts.default_agent
+    local extra_args = {}
+
+    if not title or title == '' then
+        notify('Usage: AgentWatchLaunch <title> [codex|cursor|agent] [args...]', vim.log.levels.ERROR)
+        return
+    end
+
+    if not valid_agents[agent] then
+        notify('Unknown agent "' .. agent .. '". Use codex, cursor, or agent.', vim.log.levels.ERROR)
+        return
+    end
+
+    for index = args[2] and 3 or 2, #args do
+        table.insert(extra_args, args[index])
+    end
+
+    vim.cmd('botright split')
+    vim.cmd('terminal')
+    local bufnr = vim.api.nvim_get_current_buf()
+    local job_id = vim.b[bufnr].terminal_job_id
+
+    if not job_id then
+        notify('Could not start terminal for agent launch', vim.log.levels.ERROR)
+        return
+    end
+
+    local parts = {
+        state.opts.cli,
+        'launch',
+        '--title',
+        title,
+        '--nvim-server',
+        server,
+        '--nvim-terminal-bufnr',
+        bufnr,
+        agent,
+    }
+
+    vim.list_extend(parts, extra_args)
+    vim.fn.chansend(job_id, terminal_command(parts) .. '\n')
+    vim.cmd('startinsert')
+end
+
+local function complete_agent(arg_lead, cmd_line)
+    local args = vim.split(cmd_line, '%s+', { trimempty = true })
+    if #args == 3 then
+        return vim.tbl_filter(function(agent)
+            return vim.startswith(agent, arg_lead)
+        end, { 'codex', 'cursor', 'agent' })
+    end
+    return {}
+end
+
+function M.setup(opts)
+    state.opts = vim.tbl_deep_extend('force', vim.deepcopy(defaults), opts or {})
+    state.opts.cli = vim.fn.expand(state.opts.cli)
+    if not ({ codex = true, cursor = true, agent = true })[state.opts.default_agent] then
+        state.opts.default_agent = defaults.default_agent
+    end
+    local interval = state.opts.watch_interval or state.opts.refresh_interval
+    state.opts.watch_interval = tonumber(interval) or defaults.watch_interval
+
+    pcall(vim.api.nvim_del_user_command, state.opts.commands.watch)
+    pcall(vim.api.nvim_del_user_command, state.opts.commands.launch)
+
+    vim.api.nvim_create_user_command(state.opts.commands.watch, M.refresh, {
+        desc = 'Open or refresh Agent Watch',
+    })
+
+    vim.api.nvim_create_user_command(state.opts.commands.launch, function(command)
+        M.launch(command.fargs)
+    end, {
+        nargs = '*',
+        complete = complete_agent,
+        desc = 'Launch an agent tracked by Agent Watch',
+    })
+end
+
+return M
