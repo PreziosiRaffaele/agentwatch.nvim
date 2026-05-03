@@ -636,10 +636,9 @@ function M.launch(args)
 
     local bufnr = vim.api.nvim_create_buf(false, true)
     open_float(bufnr, title)
-    vim.fn.termopen(vim.o.shell)
-    local job_id = vim.b[bufnr].terminal_job_id
+    local job_id = vim.fn.jobstart(vim.o.shell, { term = true })
 
-    if not job_id then
+    if type(job_id) ~= 'number' or job_id <= 0 then
         notify('Could not start terminal for agent launch', vim.log.levels.ERROR)
         vim.api.nvim_win_close(0, false)
         return
