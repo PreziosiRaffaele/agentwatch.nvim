@@ -20,7 +20,7 @@ The plugin is loaded locally from `~/code/agent-watch-nvim`.
 ## Commands
 
 - `:AgentWatch` opens or refreshes the bottom scratch buffer for agents attached to the current Neovim server.
-- `:AgentWatchLaunch <title> [codex|cursor|agent] [args...]` opens a terminal and runs `agent-watch launch`.
+- `:AgentWatchLaunch <title> [codex|cursor|agent|claude] [args...]` opens a terminal and runs `agent-watch launch`.
 - `:AgentWatchRename [title]` renames the selected row with `agent-watch rename <id> <title>`.
 
 `AgentWatchLaunch` must always pass:

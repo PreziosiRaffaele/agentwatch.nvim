@@ -28,6 +28,11 @@ local state = {
 
 local stop_watch
 local watch_statusline = 'Agent Watch  <CR>: open  r: rename  dd: delete'
+local supported_agents = { 'codex', 'cursor', 'agent', 'claude' }
+local supported_agent_set = {}
+for _, agent in ipairs(supported_agents) do
+    supported_agent_set[agent] = true
+end
 
 local function notify(message, level)
     vim.notify(message, level or vim.log.levels.INFO, { title = 'agent-watch.nvim' })
@@ -572,18 +577,17 @@ function M.launch(args)
     end
 
     args = args or {}
-    local valid_agents = { codex = true, cursor = true, agent = true }
     local title = args[1]
     local agent = args[2] or state.opts.default_agent
     local extra_args = {}
 
     if not title or title == '' then
-        notify('Usage: AgentWatchLaunch <title> [codex|cursor|agent] [args...]', vim.log.levels.ERROR)
+        notify('Usage: AgentWatchLaunch <title> [codex|cursor|agent|claude] [args...]', vim.log.levels.ERROR)
         return
     end
 
-    if not valid_agents[agent] then
-        notify('Unknown agent "' .. agent .. '". Use codex, cursor, or agent.', vim.log.levels.ERROR)
+    if not supported_agent_set[agent] then
+        notify('Unknown agent "' .. agent .. '". Use codex, cursor, agent, or claude.', vim.log.levels.ERROR)
         return
     end
 
@@ -624,7 +628,7 @@ local function complete_agent(arg_lead, cmd_line)
     if #args == 3 then
         return vim.tbl_filter(function(agent)
             return vim.startswith(agent, arg_lead)
-        end, { 'codex', 'cursor', 'agent' })
+        end, supported_agents)
     end
     return {}
 end
@@ -635,7 +639,7 @@ function M.setup(opts)
         state.opts.height = state.opts.high
     end
     state.opts.cli = vim.fn.expand(state.opts.cli)
-    if not ({ codex = true, cursor = true, agent = true })[state.opts.default_agent] then
+    if not supported_agent_set[state.opts.default_agent] then
         state.opts.default_agent = defaults.default_agent
     end
     state.opts.fixed_height = state.opts.fixed_height ~= false
