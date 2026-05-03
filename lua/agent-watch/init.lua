@@ -25,7 +25,7 @@ local state = {
 }
 
 local stop_watch
-local watch_statusline = 'Agent Watch  <CR> open  r rename  dd delete'
+local watch_statusline = 'Agent Watch  <CR>: open  r: rename  dd: delete'
 
 local function notify(message, level)
     vim.notify(message, level or vim.log.levels.INFO, { title = 'agent-watch.nvim' })
