@@ -7,6 +7,7 @@ local defaults = {
     watch_interval = 1000,
     refresh_interval = nil,
     default_agent = 'codex',
+    available_agents = { 'codex', 'cursor', 'agent', 'claude' },
     commands = {
         watch = 'AgentWatch',
         toggle = 'AgentWatchToggle',
@@ -32,6 +33,44 @@ local supported_agents = { 'codex', 'cursor', 'agent', 'claude' }
 local supported_agent_set = {}
 for _, agent in ipairs(supported_agents) do
     supported_agent_set[agent] = true
+end
+
+local function available_agents()
+    return state.opts.available_agents or defaults.available_agents
+end
+
+local function available_agent_set()
+    local set = {}
+    for _, agent in ipairs(available_agents()) do
+        set[agent] = true
+    end
+    return set
+end
+
+local function validate_agent_config(opts)
+    local configured_agents = opts.available_agents
+    if configured_agents == nil then
+        configured_agents = vim.deepcopy(defaults.available_agents)
+    end
+
+    if type(configured_agents) ~= 'table' or vim.tbl_isempty(configured_agents) then
+        notify('Invalid available_agents config. Use a non-empty list of: codex, cursor, agent, claude.', vim.log.levels.ERROR)
+        configured_agents = vim.deepcopy(defaults.available_agents)
+    end
+
+    for _, agent in ipairs(configured_agents) do
+        if not supported_agent_set[agent] then
+            notify('Unknown available_agents value "' .. tostring(agent) .. '". Allowed: codex, cursor, agent, claude.', vim.log.levels.ERROR)
+            configured_agents = vim.deepcopy(defaults.available_agents)
+            break
+        end
+    end
+
+    opts.available_agents = configured_agents
+    if not vim.tbl_contains(configured_agents, opts.default_agent) then
+        notify('default_agent must be in available_agents. Falling back to "' .. configured_agents[1] .. '".', vim.log.levels.ERROR)
+        opts.default_agent = configured_agents[1]
+    end
 end
 
 local function first_nonempty(...)
@@ -594,7 +633,8 @@ function M.prompt_launch()
             return
         end
 
-        vim.ui.select(supported_agents, {
+        local agents = available_agents()
+        vim.ui.select(agents, {
             prompt = 'Agent type:',
             format_item = function(agent)
                 if agent == state.opts.default_agent then
@@ -619,14 +659,16 @@ function M.launch(args)
     local title = args[1]
     local agent = args[2] or state.opts.default_agent
     local extra_args = {}
+    local configured_agents = available_agents()
+    local configured_agent_set = available_agent_set()
 
     if not title or title == '' then
-        notify('Usage: AgentWatchLaunch <title> [codex|cursor|agent|claude] [args...]', vim.log.levels.ERROR)
+        notify('Usage: AgentWatchLaunch <title> [agent] [args...]', vim.log.levels.ERROR)
         return
     end
 
-    if not supported_agent_set[agent] then
-        notify('Unknown agent "' .. agent .. '". Use codex, cursor, agent, or claude.', vim.log.levels.ERROR)
+    if not configured_agent_set[agent] then
+        notify('Unknown agent "' .. agent .. '". Use one of: ' .. table.concat(configured_agents, ', '), vim.log.levels.ERROR)
         return
     end
 
@@ -666,7 +708,7 @@ local function complete_agent(arg_lead, cmd_line)
     if #args == 3 then
         return vim.tbl_filter(function(agent)
             return vim.startswith(agent, arg_lead)
-        end, supported_agents)
+        end, available_agents())
     end
     return {}
 end
@@ -677,9 +719,7 @@ function M.setup(opts)
         state.opts.height = state.opts.high
     end
     state.opts.cli = vim.fn.expand(state.opts.cli)
-    if not supported_agent_set[state.opts.default_agent] then
-        state.opts.default_agent = defaults.default_agent
-    end
+    validate_agent_config(state.opts)
     state.opts.fixed_height = state.opts.fixed_height ~= false
     state.opts.height = watch_height()
     local interval = state.opts.watch_interval or state.opts.refresh_interval

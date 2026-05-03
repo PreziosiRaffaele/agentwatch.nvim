@@ -6,7 +6,7 @@ Local Neovim integration for the sibling `agent-watch` CLI.
 
 - `:AgentWatch` opens or refreshes a bottom scratch buffer showing agents attached to the current Neovim server.
 - `:AgentWatchToggle` toggles the Agent Watch window visibility. When opened, the view refreshes while it is visible.
-- `:AgentWatchLaunch <title> [codex|cursor|agent|claude] [args...]` opens a terminal and starts an agent through `agent-watch launch`.
+- `:AgentWatchLaunch <title> [agent] [args...]` opens a terminal and starts an agent through `agent-watch launch`.
 - `:AgentWatchRename [title]` renames the selected agent row. Without a title, it prompts for one.
 
 Titles with spaces must be quoted, for example `:AgentWatchLaunch "Fix parser" codex`.
@@ -30,6 +30,7 @@ return {
     opts = {
         cli = vim.fn.expand('~/code/agent-watch/bin/agent-watch.js'),
         default_agent = 'codex',
+        available_agents = { 'codex', 'cursor', 'agent', 'claude' },
         height = 10,
         fixed_height = true,
         watch_interval = 1000,
@@ -39,6 +40,9 @@ return {
 
 `height` controls the bottom `:AgentWatch` window height in lines.
 `fixed_height` controls whether the watch window keeps a fixed height (`winfixheight`).
+`available_agents` controls which agents can be selected/launched in your space.
+Allowed values are: `codex`, `cursor`, `agent`, `claude`.
+If `available_agents` or `default_agent` are misconfigured, the plugin surfaces an error and falls back to a safe value.
 
 ## Code quality
 
