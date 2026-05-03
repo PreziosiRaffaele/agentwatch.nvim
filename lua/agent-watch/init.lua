@@ -1,7 +1,7 @@
 local M = {}
 
 local defaults = {
-    cli = vim.fn.expand('~/code/agent-watch/bin/agent-watch.js'),
+    cli = 'agent-watch',
     height = 10,
     fixed_height = true,
     watch_interval = 1000,
