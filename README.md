@@ -28,7 +28,12 @@ return {
     opts = {
         cli = vim.fn.expand('~/code/agent-watch/bin/agent-watch.js'),
         default_agent = 'codex',
+        height = 10,
+        fixed_height = true,
         watch_interval = 1000,
     },
 }
 ```
+
+`height` controls the bottom `:AgentWatch` window height in lines.
+`fixed_height` controls whether the watch window keeps a fixed height (`winfixheight`).

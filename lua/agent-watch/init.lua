@@ -3,6 +3,7 @@ local M = {}
 local defaults = {
     cli = vim.fn.expand('~/code/agent-watch/bin/agent-watch.js'),
     height = 10,
+    fixed_height = true,
     watch_interval = 1000,
     refresh_interval = nil,
     default_agent = 'codex',
@@ -102,30 +103,40 @@ local function set_watch_statusline(win)
     if is_target_window(win) then
         vim.wo[win].statusline = watch_statusline
         vim.wo[win].wrap = false
+        vim.wo[win].winfixheight = state.opts.fixed_height
     end
+end
+
+local function watch_height()
+    local height = tonumber(state.opts.height) or defaults.height
+    if height < 1 then
+        return defaults.height
+    end
+    return math.floor(height)
 end
 
 local function ensure_watch_window()
     if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
         local win = visible_watch_window()
         if win then
+            vim.api.nvim_win_set_height(win, watch_height())
             set_watch_statusline(win)
             return state.buf, state.win
         end
 
-        vim.cmd('botright ' .. tonumber(state.opts.height) .. 'split')
+        vim.cmd('botright ' .. watch_height() .. 'split')
         state.win = vim.api.nvim_get_current_win()
         vim.api.nvim_win_set_buf(state.win, state.buf)
-        vim.api.nvim_win_set_height(state.win, tonumber(state.opts.height))
+        vim.api.nvim_win_set_height(state.win, watch_height())
         set_watch_statusline(state.win)
         return state.buf, state.win
     end
 
-    vim.cmd('botright ' .. tonumber(state.opts.height) .. 'split')
+    vim.cmd('botright ' .. watch_height() .. 'split')
     state.win = vim.api.nvim_get_current_win()
     state.buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_win_set_buf(state.win, state.buf)
-    vim.api.nvim_win_set_height(state.win, tonumber(state.opts.height))
+    vim.api.nvim_win_set_height(state.win, watch_height())
     set_watch_statusline(state.win)
 
     vim.bo[state.buf].buftype = 'nofile'
@@ -608,10 +619,15 @@ end
 
 function M.setup(opts)
     state.opts = vim.tbl_deep_extend('force', vim.deepcopy(defaults), opts or {})
+    if state.opts.high ~= nil and state.opts.height == defaults.height then
+        state.opts.height = state.opts.high
+    end
     state.opts.cli = vim.fn.expand(state.opts.cli)
     if not ({ codex = true, cursor = true, agent = true })[state.opts.default_agent] then
         state.opts.default_agent = defaults.default_agent
     end
+    state.opts.fixed_height = state.opts.fixed_height ~= false
+    state.opts.height = watch_height()
     local interval = state.opts.watch_interval or state.opts.refresh_interval
     state.opts.watch_interval = tonumber(interval) or defaults.watch_interval
 
