@@ -212,7 +212,7 @@ local function render_rows(rows)
         display_width('TITLE', 32),
         display_width('REPO', 24),
         display_width('BRANCH', 18),
-        display_width('UPDATED', 20),
+        display_width('UPDATED', 24),
     }, '  ')
 
     table.insert(lines, header)
@@ -226,7 +226,7 @@ local function render_rows(rows)
             display_width(get_field(row, { 'title', 'name', 'summary' }), 32),
             display_width(get_field(row, { 'repo', 'repository', 'cwd' }), 24),
             display_width(get_field(row, { 'branch', 'git_branch' }), 18),
-            display_width(get_field(row, { 'updated', 'updated_at', 'updatedAt' }), 20),
+            display_width(get_field(row, { 'updated', 'updated_at', 'updatedAt' }), 24),
         }, '  ')
 
         table.insert(lines, line)
