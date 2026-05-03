@@ -53,6 +53,8 @@ The plugin is loaded locally from `~/code/agent-watch-nvim`.
 
 ## Verification
 
+After any edit to `*.lua` files, run `stylua --check .` before finishing.
+
 Run from the plugin root:
 
 ```sh

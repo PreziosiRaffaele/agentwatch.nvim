@@ -54,13 +54,19 @@ local function validate_agent_config(opts)
     end
 
     if type(configured_agents) ~= 'table' or vim.tbl_isempty(configured_agents) then
-        notify('Invalid available_agents config. Use a non-empty list of: codex, cursor, agent, claude.', vim.log.levels.ERROR)
+        notify(
+            'Invalid available_agents config. Use a non-empty list of: codex, cursor, agent, claude.',
+            vim.log.levels.ERROR
+        )
         configured_agents = vim.deepcopy(defaults.available_agents)
     end
 
     for _, agent in ipairs(configured_agents) do
         if not supported_agent_set[agent] then
-            notify('Unknown available_agents value "' .. tostring(agent) .. '". Allowed: codex, cursor, agent, claude.', vim.log.levels.ERROR)
+            notify(
+                'Unknown available_agents value "' .. tostring(agent) .. '". Allowed: codex, cursor, agent, claude.',
+                vim.log.levels.ERROR
+            )
             configured_agents = vim.deepcopy(defaults.available_agents)
             break
         end
@@ -68,7 +74,10 @@ local function validate_agent_config(opts)
 
     opts.available_agents = configured_agents
     if not vim.tbl_contains(configured_agents, opts.default_agent) then
-        notify('default_agent must be in available_agents. Falling back to "' .. configured_agents[1] .. '".', vim.log.levels.ERROR)
+        notify(
+            'default_agent must be in available_agents. Falling back to "' .. configured_agents[1] .. '".',
+            vim.log.levels.ERROR
+        )
         opts.default_agent = configured_agents[1]
     end
 end
@@ -668,7 +677,10 @@ function M.launch(args)
     end
 
     if not configured_agent_set[agent] then
-        notify('Unknown agent "' .. agent .. '". Use one of: ' .. table.concat(configured_agents, ', '), vim.log.levels.ERROR)
+        notify(
+            'Unknown agent "' .. agent .. '". Use one of: ' .. table.concat(configured_agents, ', '),
+            vim.log.levels.ERROR
+        )
         return
     end
 
