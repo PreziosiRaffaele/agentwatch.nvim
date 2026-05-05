@@ -10,80 +10,53 @@ This is a local Neovim plugin for the sibling `agent-watch` CLI.
 
 The plugin is loaded locally from `~/code/agent-watch-nvim`.
 
-## Files
+## Source of Truth
 
-- `plugin/agent-watch.lua` is the startup shim. Keep it minimal.
-- `lua/agent-watch/init.lua` contains the implementation.
-- `README.md` documents user-facing commands and setup.
-- `AGENTS.md` documents contributor and agent workflow.
+Use `docs/spec.md` as the source of truth for product behavior, command semantics,
+daemon API usage, configuration, and user-facing data flow. Do not duplicate that
+content here. When behavior changes, update the spec first, then keep this file
+limited to contributor workflow and engineering practices.
 
-## Commands
+`README.md` is the user-facing quickstart. Keep it concise and consistent with
+the spec.
 
-- `:AgentWatch` opens or refreshes the bottom scratch buffer for agents attached to the current Neovim server.
-- `:AgentWatchLaunch <title> [codex|agent|claude] [args...]` opens a terminal and runs `agent-watch launch`.
-- `:AgentWatchRename [title]` renames the selected row with `agent-watch rename <id> <title>`.
+## Compatibility Policy
 
-`AgentWatchLaunch` must always pass:
+This project is in beta. By default, do not preserve backward compatibility; prefer always clean design.
+When changing or removing public commands, flags, columns, or JSON fields, update the README, spec, and this file so the supported surface is explicit.
 
-- `--title <title>`
-- `--nvim-server <current server>`
-- `--nvim-terminal-bufnr <terminal buffer number>`
-- the selected agent, or `opts.default_agent` when omitted
+## Folder Structure
 
-## Behavior Notes
+- `plugin/agent-watch.lua`: Neovim startup shim. Keep it minimal; require the Lua module and call setup only.
+- `lua/agent-watch/`: plugin implementation.
+- `docs/spec.md`: canonical product and integration spec.
+- `README.md`: installation and daily-use documentation.
+- `AGENTS.md`: contributor workflow, code quality, and development guardrails.
 
-- Ensure a Neovim server exists with `vim.v.servername` or `vim.fn.serverstart()`.
-- Use `vim.system({ cli, 'list', '--json', '--filter', 'nvim_server=' .. server }, { text = true }, callback)` for one-shot listing.
-- Use `agent-watch list --json --filter nvim_server=<server> --watch --interval <ms>` for the live watch buffer.
-- Parse JSON with `vim.json.decode`.
-- The CLI currently returns a JSON object with a `rows` array; keep support for list-shaped JSON and common container keys.
-- Ask the CLI to filter by `nvim_server`, and keep local exact `row.nvim_server == current_server` filtering as a compatibility guard.
-- Keep the watch buffer scratch-only: `buftype=nofile`, `bufhidden=hide`, `swapfile=false`, `filetype=agent-watch`.
-- Do not delete or alter buffers except when the user presses `dd` on a mapped agent row.
-- `r` on an agent row prompts for a new title and refreshes the list after rename succeeds.
-- `dd` force-deletes the selected row's `nvim_terminal_bufnr`, which terminates that terminal job.
+Avoid adding new top-level directories unless they have a clear role. If tests
+are introduced, prefer a conventional `tests/` directory and document the runner
+here.
 
-## Style
+## Development Practices
 
-- Use Lua patterns already present in `lua/agent-watch/init.lua`.
-- Prefer explicit argument lists for process execution.
+- Keep the startup path cheap. Avoid expensive work in `plugin/agent-watch.lua` or during `setup()`.
 - When sending a command into a terminal job, keep using `vim.fn.shellescape` for every command part.
-- Keep edits ASCII unless there is a concrete reason to do otherwise.
+- Prefer small, local helpers over broad abstractions. Extract only when it reduces real duplication or clarifies a boundary.
+- Preserve user buffers and windows. Any buffer deletion or window closing must be tied to an explicit plugin action described in the spec.
 - Avoid unrelated dotfiles changes. Existing local changes in dotfiles may belong to the user.
+
+When creating lua modules:
+
+- Group code by responsibility, not by generic file type.
+- Do not create huge Lua modules that take on multiple responsibilities.
+- Prefer explicit exported functions over broad utility modules.
+- Keep module APIs small; do not export internals just for tests unless there is a clear reason.
+- Use domain names for files and functions, not vague names like `helpers`, `utils`, or `common` unless the code is truly cross-cutting.
+- Prefer plain objects and simple functions before introducing classes.
+- Avoid barrel files.
+- Before adding a new module, define its owner responsibility in one sentence. If that sentence has multiple unrelated responsibilities, split the module.
+- Add comments only for non-obvious control flow or integration constraints.
 
 ## Verification
 
 After any edit to `*.lua` files, run `stylua --check .` before finishing.
-
-Run from the plugin root:
-
-```sh
-nvim --headless -u NONE -i NONE -c "set shadafile=NONE" -c "set rtp+=/Users/raffaelepreziosi/code/agent-watch-nvim" -c "lua require('agent-watch').setup()" -c "qa"
-```
-
-Check CLI compatibility:
-
-```sh
-/Users/raffaelepreziosi/code/agent-watch/bin/agent-watch.js list --json --filter nvim_server=/tmp/nonexistent-agent-watch-server
-```
-
-Parse the lazy.nvim spec when it changes:
-
-```sh
-nvim --headless -u NONE -i NONE -c "set shadafile=NONE" -c "luafile /Users/raffaelepreziosi/dotfiles/config/nvim/lua/rpreziosi/plugins/agentWatch.lua" -c "qa"
-```
-
-Full `:AgentWatch` headless verification may need permission outside the sandbox because Neovim must create a server socket:
-
-```sh
-nvim --headless -u NONE -i NONE -c "set shadafile=NONE" -c "set rtp+=/Users/raffaelepreziosi/code/agent-watch-nvim" -c "runtime plugin/agent-watch.lua" -c "AgentWatch" -c "sleep 500m" -c "qa!"
-```
-
-## Manual Checks
-
-- `:AgentWatch` opens a bottom buffer and shows only agents for the current Neovim server.
-- `:AgentWatchLaunch "Some title"` launches the configured default agent.
-- `:AgentWatchLaunch "Some title" agent` launches through the `agent` backend.
-- `<CR>` on an agent row jumps to its terminal buffer.
-- `r` on an agent row renames the tracked agent title.
-- `dd` on an agent row deletes that terminal buffer and refreshes the list.
