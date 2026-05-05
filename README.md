@@ -6,6 +6,7 @@ Local Neovim integration for the sibling `agent-watch` CLI.
 
 - `:AgentWatch` opens or refreshes a bottom scratch buffer showing agents attached to the current Neovim server.
 - `:AgentWatchToggle` toggles the Agent Watch window visibility. When opened, the view refreshes while it is visible.
+- `:AgentWatchToggleLatest` toggles the latest agent terminal. It closes the terminal when visible and reopens it when hidden.
 - `:AgentWatchLaunch <title> [agent] [args...]` opens a terminal and starts `aw <agent>` directly inside it.
 - `:AgentWatchRename [title]` renames the selected agent row. Without a title, it prompts for one.
 
@@ -21,12 +22,20 @@ Inside the `AgentWatch` buffer:
 - `dd` force-deletes the selected agent terminal buffer.
 - `q` closes the watch window.
 
+Global normal-mode mappings:
+
+- `<C-\><C-\>` toggles the latest agent terminal.
+
+Inside agent terminal buffers, in terminal and normal mode:
+
+- `<C-\><C-\>` toggles the latest agent terminal.
+
 ## Setup
 
 ```lua
 return {
     dir = '~/code/agent-watch-nvim',
-    cmd = { 'AgentWatch', 'AgentWatchToggle', 'AgentWatchLaunch', 'AgentWatchRename' },
+    cmd = { 'AgentWatch', 'AgentWatchToggle', 'AgentWatchToggleLatest', 'AgentWatchLaunch', 'AgentWatchRename' },
     opts = {
         cli = 'aw',
         daemon_url = nil,
@@ -35,6 +44,9 @@ return {
         height = 10,
         fixed_height = true,
         watch_interval = 1000,
+        keymaps = {
+            toggle_latest = '<C-\\><C-\\>',
+        },
         terminal = {
             layout = 'float', -- 'float', 'side', or 'tab'
             side = 'right',

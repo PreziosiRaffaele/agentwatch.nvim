@@ -3,6 +3,10 @@ local notify = require('agent-watch.notify').notify
 
 local M = {}
 
+local state = {
+    toggle_latest = nil,
+}
+
 local function terminal_opts(opts)
     return opts.terminal or {}
 end
@@ -14,9 +18,18 @@ local function start_insert(bufnr)
 end
 
 local function set_close_keymap(bufnr)
-    vim.keymap.set('t', '<C-w>q', function()
+    vim.keymap.set({ 'n', 't' }, '<C-\\><C-\\>', function()
+        if state.toggle_latest then
+            state.toggle_latest()
+            return
+        end
+
         vim.api.nvim_win_close(0, false)
-    end, { buffer = bufnr, silent = true, desc = 'Close agent terminal' })
+    end, { buffer = bufnr, silent = true, desc = 'Toggle latest agent terminal' })
+end
+
+function M.setup(opts)
+    state.toggle_latest = opts and opts.toggle_latest or nil
 end
 
 function M.open_float(opts, bufnr, title)
@@ -122,10 +135,11 @@ function M.launch(opts, server, args)
     if type(job_id) ~= 'number' or job_id <= 0 then
         notify('Could not start terminal for agent launch', vim.log.levels.ERROR)
         vim.api.nvim_win_close(0, false)
-        return
+        return nil
     end
 
     vim.cmd('startinsert')
+    return bufnr
 end
 
 return M

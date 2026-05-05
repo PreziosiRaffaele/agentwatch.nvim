@@ -20,8 +20,12 @@ M.defaults = {
     commands = {
         watch = 'AgentWatch',
         toggle = 'AgentWatchToggle',
+        toggle_latest = 'AgentWatchToggleLatest',
         launch = 'AgentWatchLaunch',
         rename = 'AgentWatchRename',
+    },
+    keymaps = {
+        toggle_latest = '<C-\\><C-\\>',
     },
 }
 

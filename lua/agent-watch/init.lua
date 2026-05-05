@@ -11,6 +11,8 @@ local M = {}
 
 local state = {
     opts = config.build(),
+    latest = nil,
+    toggle_latest_keymap = nil,
 }
 
 local function first_nonempty(...)
@@ -40,6 +42,100 @@ function M.toggle()
     watcher.refresh()
 end
 
+local function remember_latest(bufnr, title)
+    state.latest = {
+        bufnr = bufnr,
+        title = title,
+    }
+end
+
+local function valid_latest()
+    if not state.latest then
+        return nil
+    end
+
+    local bufnr = state.latest.bufnr
+    if bufnr and vim.api.nvim_buf_is_valid(bufnr) and vim.api.nvim_buf_is_loaded(bufnr) then
+        return state.latest
+    end
+
+    state.latest = nil
+    return nil
+end
+
+local function close_visible_terminal(bufnr)
+    local closed = false
+    for _, win in ipairs(vim.fn.win_findbuf(bufnr)) do
+        if vim.api.nvim_win_is_valid(win) then
+            closed = pcall(vim.api.nvim_win_close, win, false) or closed
+        end
+    end
+    return closed
+end
+
+local function row_id(row)
+    return tonumber(rows.id(row))
+end
+
+local function latest_daemon_row(agent_rows, nvim_server)
+    local latest_row = nil
+    local latest_id = nil
+
+    for _, row in ipairs(rows.filter(agent_rows, nvim_server)) do
+        local bufnr = rows.bufnr(row)
+        local id = row_id(row)
+        if bufnr and id and vim.api.nvim_buf_is_loaded(bufnr) and (not latest_id or id > latest_id) then
+            latest_row = row
+            latest_id = id
+        end
+    end
+
+    return latest_row
+end
+
+local function open_latest(latest)
+    terminal.open(state.opts, latest.bufnr, latest.title)
+    remember_latest(latest.bufnr, latest.title)
+end
+
+local function open_daemon_latest()
+    local nvim_server = server.ensure()
+    if not nvim_server then
+        return
+    end
+
+    daemon.list_agents(state.opts, nvim_server, function(agent_rows, err)
+        if err then
+            notify('agent-watchd request failed: ' .. err, vim.log.levels.ERROR)
+            return
+        end
+
+        local row = latest_daemon_row(agent_rows, nvim_server)
+        if not row then
+            notify('No latest agent terminal found', vim.log.levels.WARN)
+            return
+        end
+
+        local bufnr = rows.bufnr(row)
+        local title = rows.field(row, { 'title', 'name', 'summary' })
+        open_latest({ bufnr = bufnr, title = title })
+    end)
+end
+
+function M.toggle_latest()
+    local latest = valid_latest()
+    if latest then
+        if close_visible_terminal(latest.bufnr) then
+            return
+        end
+
+        open_latest(latest)
+        return
+    end
+
+    open_daemon_latest()
+end
+
 function M.jump_to_agent()
     local row = window.selected_row()
     if not row then
@@ -52,7 +148,9 @@ function M.jump_to_agent()
         return
     end
 
-    terminal.open(state.opts, bufnr, rows.field(row, { 'title', 'name', 'summary' }))
+    local title = rows.field(row, { 'title', 'name', 'summary' })
+    terminal.open(state.opts, bufnr, title)
+    remember_latest(bufnr, title)
 end
 
 function M.delete_agent()
@@ -140,7 +238,10 @@ function M.launch(args)
         return
     end
 
-    terminal.launch(state.opts, nvim_server, args)
+    local bufnr = terminal.launch(state.opts, nvim_server, args)
+    if bufnr then
+        remember_latest(bufnr, args and args[1] or nil)
+    end
 end
 
 local function complete_agent(arg_lead, cmd_line)
@@ -153,8 +254,28 @@ local function complete_agent(arg_lead, cmd_line)
     return {}
 end
 
+local function setup_keymaps()
+    if state.toggle_latest_keymap then
+        pcall(vim.keymap.del, 'n', state.toggle_latest_keymap)
+        state.toggle_latest_keymap = nil
+    end
+
+    local keymap = state.opts.keymaps and state.opts.keymaps.toggle_latest
+    if type(keymap) ~= 'string' or keymap == '' then
+        return
+    end
+
+    vim.keymap.set('n', keymap, M.toggle_latest, {
+        silent = true,
+        desc = 'Toggle latest agent terminal',
+    })
+    state.toggle_latest_keymap = keymap
+end
+
 function M.setup(opts)
     state.opts = config.build(opts)
+    terminal.setup({ toggle_latest = M.toggle_latest })
+    setup_keymaps()
     watcher.setup(state.opts)
     window.setup(state.opts, {
         jump = M.jump_to_agent,
@@ -169,6 +290,7 @@ function M.setup(opts)
 
     pcall(vim.api.nvim_del_user_command, state.opts.commands.watch)
     pcall(vim.api.nvim_del_user_command, state.opts.commands.toggle)
+    pcall(vim.api.nvim_del_user_command, state.opts.commands.toggle_latest)
     pcall(vim.api.nvim_del_user_command, state.opts.commands.launch)
     pcall(vim.api.nvim_del_user_command, state.opts.commands.rename)
 
@@ -178,6 +300,10 @@ function M.setup(opts)
 
     vim.api.nvim_create_user_command(state.opts.commands.toggle, M.toggle, {
         desc = 'Toggle Agent Watch',
+    })
+
+    vim.api.nvim_create_user_command(state.opts.commands.toggle_latest, M.toggle_latest, {
+        desc = 'Toggle the latest Agent Watch terminal',
     })
 
     vim.api.nvim_create_user_command(state.opts.commands.launch, function(command)

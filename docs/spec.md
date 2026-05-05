@@ -29,6 +29,7 @@ The plugin communicates with `agent-watchd` using two channels:
 - Each agent is launched in a hidden terminal buffer opened with the configured terminal layout.
 - Supported terminal layouts are `float`, `side`, and `tab`. The default is `float`.
 - `aw <agent>` is started directly as the terminal job, passing `--nvim-server` and `--nvim-bufnr` so `agent-watchd` can link the launch back to this Neovim session.
+- The latest-agent toggle prefers the last terminal launched or opened in the current Neovim session. If that buffer is missing or invalid, it fetches the current daemon rows for this Neovim server and opens the valid row with the highest launch ID.
 
 ---
 
@@ -44,6 +45,7 @@ The plugin calls `vim.fn.serverstart()` to ensure a server address exists and pa
 | --- | --- |
 | `AgentWatch` | Open or refresh the watch buffer. |
 | `AgentWatchToggle` | Toggle the watch window. Stopping the watch process on close. |
+| `AgentWatchToggleLatest` | Toggle the latest agent terminal. Closes it when visible, opens it when hidden. |
 | `AgentWatchLaunch <title> [agent] [args...]` | Open a terminal and start a tracked agent. |
 | `AgentWatchRename [title]` | Rename the selected agent. Prompts if no title is given. |
 
@@ -60,6 +62,18 @@ Inside the `AgentWatch` buffer:
 | `r` | Rename the selected agent. |
 | `dd` | Force-delete the selected agent terminal buffer. |
 | `q` | Close the watch window and stop the watch process. |
+
+Global normal-mode mappings:
+
+| Key | Action |
+| --- | --- |
+| `<C-\><C-\>` | Toggle the latest agent terminal. |
+
+Inside agent terminal buffers, in terminal and normal mode:
+
+| Key | Action |
+| --- | --- |
+| `<C-\><C-\>` | Toggle the latest agent terminal. |
 
 ---
 
@@ -84,8 +98,12 @@ require('agent-watch').setup({
     commands = {
         watch  = 'AgentWatch',
         toggle = 'AgentWatchToggle',
+        toggle_latest = 'AgentWatchToggleLatest',
         launch = 'AgentWatchLaunch',
         rename = 'AgentWatchRename',
+    },
+    keymaps = {
+        toggle_latest = '<C-\\><C-\\>',
     },
 })
 ```
@@ -103,6 +121,12 @@ AgentWatch / AgentWatchToggle
   → ensures Neovim server is running
   → resolves daemon URL from daemon_url, ~/.agent-watch/daemon.json, or default localhost
   → polls: GET <daemon_url>/agents?nvim_server=<addr>
+
+AgentWatchToggleLatest
+  → closes the last launched/opened agent terminal when it is visible
+  → otherwise reopens the last launched/opened terminal with the configured layout
+  → if local latest state is invalid, fetches GET <daemon_url>/agents?nvim_server=<addr>
+  → chooses the valid row with the highest launch ID and opens it
 
 AgentWatchLaunch <title> [agent]
   → ensures Neovim server is running
