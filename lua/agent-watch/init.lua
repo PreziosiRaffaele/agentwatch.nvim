@@ -42,11 +42,8 @@ function M.toggle()
     watcher.refresh()
 end
 
-local function remember_latest(bufnr, title)
-    state.latest = {
-        bufnr = bufnr,
-        title = title,
-    }
+local function remember_latest(bufnr)
+    state.latest = { bufnr = bufnr }
 end
 
 local function valid_latest()
@@ -94,8 +91,8 @@ local function latest_daemon_row(agent_rows, nvim_server)
 end
 
 local function open_latest(latest)
-    terminal.open(state.opts, latest.bufnr, latest.title)
-    remember_latest(latest.bufnr, latest.title)
+    terminal.open(state.opts, latest.bufnr)
+    remember_latest(latest.bufnr)
 end
 
 local function open_daemon_latest()
@@ -117,8 +114,7 @@ local function open_daemon_latest()
         end
 
         local bufnr = rows.bufnr(row)
-        local title = rows.field(row, { 'title', 'name', 'summary' })
-        open_latest({ bufnr = bufnr, title = title })
+        open_latest({ bufnr = bufnr })
     end)
 end
 
@@ -148,9 +144,8 @@ function M.jump_to_agent()
         return
     end
 
-    local title = rows.field(row, { 'title', 'name', 'summary' })
-    terminal.open(state.opts, bufnr, title)
-    remember_latest(bufnr, title)
+    terminal.open(state.opts, bufnr)
+    remember_latest(bufnr)
 end
 
 function M.delete_agent()
@@ -194,6 +189,11 @@ function M.rename_agent(args)
                 return
             end
 
+            local bufnr = rows.bufnr(row)
+            if bufnr then
+                vim.b[bufnr].agent_watch_title = title
+                terminal.refresh_statusline(bufnr)
+            end
             notify('Renamed agent to "' .. title .. '"')
             watcher.refresh({ loading = false })
         end)
@@ -240,7 +240,7 @@ function M.launch(args)
 
     local bufnr = terminal.launch(state.opts, nvim_server, args)
     if bufnr then
-        remember_latest(bufnr, args and args[1] or nil)
+        remember_latest(bufnr)
     end
 end
 
