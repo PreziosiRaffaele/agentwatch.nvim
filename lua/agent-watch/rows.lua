@@ -115,8 +115,8 @@ function M.render(rows)
         display_width('ID', 5),
         display_width('STATE', 16),
         display_width('AGENT', 10),
-        display_width('TITLE', 45),
-        display_width('BRANCH', 18),
+        display_width('TITLE', 30),
+        display_width('BRANCH', 40),
         display_width('UPDATED', 10),
     }, '  ')
 
@@ -128,8 +128,8 @@ function M.render(rows)
             display_width(M.id(row) or '', 5),
             display_width(M.field(row, { 'state', 'status' }), 16),
             display_width(M.field(row, { 'agent', 'agent_type', 'type' }), 10),
-            display_width(M.field(row, { 'title', 'name', 'summary' }), 45),
-            display_width(M.field(row, { 'branch', 'git_branch' }), 18),
+            display_width(M.field(row, { 'title', 'name', 'summary' }), 30),
+            display_width(M.field(row, { 'branch', 'git_branch' }), 40),
             display_width(relative_time(M.field(row, { 'updated', 'updated_at', 'updatedAt' })), 10),
         }, '  ')
 
