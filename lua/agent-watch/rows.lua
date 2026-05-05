@@ -39,12 +39,14 @@ local function relative_time(ts)
     end
 
     local diff = os.difftime(os.time(), epoch)
-    if diff < 10 then
+    if diff < 60 then
         return 'just now'
-    elseif diff < 60 then
-        return diff .. 's ago'
+    elseif diff < 300 then
+        return '< 5m ago'
+    elseif diff < 900 then
+        return '< 15m ago'
     elseif diff < 3600 then
-        return math.floor(diff / 60) .. 'm ago'
+        return '< 1h ago'
     elseif diff < 86400 then
         return math.floor(diff / 3600) .. 'h ago'
     else
