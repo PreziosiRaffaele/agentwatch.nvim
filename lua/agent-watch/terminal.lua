@@ -17,16 +17,11 @@ local function start_insert(bufnr)
     end
 end
 
-local function set_terminal_window_options(win, bufnr)
-    if not vim.api.nvim_win_is_valid(win) then return end
+local function set_buffer_name(bufnr)
     local title = vim.b[bufnr].agent_watch_title or ''
     local agent = vim.b[bufnr].agent_watch_agent or ''
-    local statusline = ' '
-    if agent ~= '' then
-        statusline = statusline .. '[' .. agent .. ']  '
-    end
-    statusline = statusline .. title
-    vim.wo[win].statusline = statusline
+    local name = agent ~= '' and ('[' .. agent .. '] ' .. title) or title
+    pcall(vim.api.nvim_buf_set_name, bufnr, name)
 end
 
 local function set_close_keymap(bufnr)
@@ -52,7 +47,7 @@ function M.open_float(opts, bufnr)
     local col = math.floor((vim.o.columns - width) / 2)
     local title = vim.b[bufnr].agent_watch_title
 
-    local win = vim.api.nvim_open_win(bufnr, true, {
+    vim.api.nvim_open_win(bufnr, true, {
         relative = 'editor',
         width = width,
         height = height,
@@ -64,7 +59,6 @@ function M.open_float(opts, bufnr)
         title_pos = 'center',
     })
 
-    set_terminal_window_options(win, bufnr)
     set_close_keymap(bufnr)
     start_insert(bufnr)
 end
@@ -79,7 +73,6 @@ function M.open_side(opts, bufnr)
     vim.cmd(modifier .. ' vertical ' .. terminal.width .. 'split')
     vim.api.nvim_set_current_buf(bufnr)
     vim.cmd('vertical resize ' .. terminal.width)
-    set_terminal_window_options(vim.api.nvim_get_current_win(), bufnr)
     set_close_keymap(bufnr)
     start_insert(bufnr)
 end
@@ -87,15 +80,12 @@ end
 function M.open_tab(_, bufnr)
     vim.cmd('tabnew')
     vim.api.nvim_set_current_buf(bufnr)
-    set_terminal_window_options(vim.api.nvim_get_current_win(), bufnr)
     set_close_keymap(bufnr)
     start_insert(bufnr)
 end
 
-function M.refresh_statusline(bufnr)
-    for _, win in ipairs(vim.fn.win_findbuf(bufnr)) do
-        set_terminal_window_options(win, bufnr)
-    end
+function M.refresh_bufname(bufnr)
+    set_buffer_name(bufnr)
 end
 
 function M.open(opts, bufnr)
@@ -153,6 +143,12 @@ function M.launch(opts, server, args)
     }
 
     vim.list_extend(parts, extra_args)
+
+    vim.api.nvim_create_autocmd('TermOpen', {
+        buffer = bufnr,
+        once = true,
+        callback = function() set_buffer_name(bufnr) end,
+    })
 
     M.open(opts, bufnr)
     local job_id = vim.fn.jobstart(parts, { term = true })

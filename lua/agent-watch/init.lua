@@ -192,7 +192,7 @@ function M.rename_agent(args)
             local bufnr = rows.bufnr(row)
             if bufnr then
                 vim.b[bufnr].agent_watch_title = title
-                terminal.refresh_statusline(bufnr)
+                terminal.refresh_bufname(bufnr)
             end
             notify('Renamed agent to "' .. title .. '"')
             watcher.refresh({ loading = false })
