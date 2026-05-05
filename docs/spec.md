@@ -83,7 +83,7 @@ Inside agent terminal buffers, in terminal and normal mode:
 require('agent-watch').setup({
     cli            = 'aw',                        -- path to the aw CLI
     daemon_url     = nil,                         -- optional agent-watchd base URL override
-    height         = 10,            -- watch window height in lines
+    height         = 8,             -- watch window height in lines
     fixed_height   = true,          -- winfixheight on the watch window
     watch_interval = 1000,          -- daemon polling interval in ms
     default_agent  = 'codex',       -- pre-selected agent in the launch prompt

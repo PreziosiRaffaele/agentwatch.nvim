@@ -41,7 +41,7 @@ return {
         daemon_url = nil,
         default_agent = 'codex',
         available_agents = { 'codex', 'agent', 'claude' },
-        height = 10,
+        height = 8,
         fixed_height = true,
         watch_interval = 1000,
         keymaps = {
