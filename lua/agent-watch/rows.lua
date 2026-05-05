@@ -1,5 +1,57 @@
 local M = {}
 
+local function relative_time(ts)
+    if not ts or ts == '' or ts == vim.NIL then
+        return ''
+    end
+
+    local epoch
+    if type(ts) == 'number' then
+        epoch = ts
+    else
+        local s = tostring(ts)
+        local year, month, day, hour, min, sec =
+            s:match('^(%d%d%d%d)-(%d%d)-(%d%d)[T ](%d%d):(%d%d):(%d%d)')
+        if not year then
+            return s
+        end
+        -- os.time interprets the table as local time; if the daemon sends UTC
+        -- timestamps (Z suffix), compute the local→UTC offset and correct.
+        local naive = os.time({
+            year = tonumber(year),
+            month = tonumber(month),
+            day = tonumber(day),
+            hour = tonumber(hour),
+            min = tonumber(min),
+            sec = tonumber(sec),
+            isdst = false,
+        })
+        if s:match('Z$') or s:match('[+-]%d%d:?%d%d$') then
+            -- os.time() is UTC epoch; os.time(os.date('!*t')) treats the UTC
+            -- time breakdown as local, giving (epoch - local_offset). The
+            -- difference is the local UTC offset in seconds.
+            local utc_d = os.date('!*t') --[[@as osdateparam]]
+            local offset = os.difftime(os.time(), os.time(utc_d))
+            epoch = naive + offset
+        else
+            epoch = naive
+        end
+    end
+
+    local diff = os.difftime(os.time(), epoch)
+    if diff < 10 then
+        return 'just now'
+    elseif diff < 60 then
+        return diff .. 's ago'
+    elseif diff < 3600 then
+        return math.floor(diff / 60) .. 'm ago'
+    elseif diff < 86400 then
+        return math.floor(diff / 3600) .. 'h ago'
+    else
+        return math.floor(diff / 86400) .. 'd ago'
+    end
+end
+
 local function display_width(value, width)
     value = tostring(value or '')
     local visible = vim.fn.strdisplaywidth(value)
@@ -61,10 +113,9 @@ function M.render(rows)
         display_width('ID', 5),
         display_width('STATE', 16),
         display_width('AGENT', 10),
-        display_width('TITLE', 32),
-        display_width('REPO', 24),
+        display_width('TITLE', 45),
         display_width('BRANCH', 18),
-        display_width('UPDATED', 24),
+        display_width('UPDATED', 10),
     }, '  ')
 
     table.insert(lines, header)
@@ -75,10 +126,9 @@ function M.render(rows)
             display_width(M.id(row) or '', 5),
             display_width(M.field(row, { 'state', 'status' }), 16),
             display_width(M.field(row, { 'agent', 'agent_type', 'type' }), 10),
-            display_width(M.field(row, { 'title', 'name', 'summary' }), 32),
-            display_width(M.field(row, { 'repo', 'repository', 'cwd' }), 24),
+            display_width(M.field(row, { 'title', 'name', 'summary' }), 45),
             display_width(M.field(row, { 'branch', 'git_branch' }), 18),
-            display_width(M.field(row, { 'updated', 'updated_at', 'updatedAt' }), 24),
+            display_width(relative_time(M.field(row, { 'updated', 'updated_at', 'updatedAt' })), 10),
         }, '  ')
 
         table.insert(lines, line)

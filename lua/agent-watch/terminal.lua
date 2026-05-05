@@ -21,10 +21,11 @@ local function set_terminal_window_options(win, bufnr)
     if not vim.api.nvim_win_is_valid(win) then return end
     local title = vim.b[bufnr].agent_watch_title or ''
     local agent = vim.b[bufnr].agent_watch_agent or ''
-    local statusline = ' ' .. title
+    local statusline = ' '
     if agent ~= '' then
-        statusline = statusline .. '  [' .. agent .. ']'
+        statusline = statusline .. '[' .. agent .. ']  '
     end
+    statusline = statusline .. title
     vim.wo[win].statusline = statusline
 end
 
