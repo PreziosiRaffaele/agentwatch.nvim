@@ -30,14 +30,6 @@ function M.open_float(bufnr, title)
     end
 end
 
-local function shell_command(parts)
-    local escaped = {}
-    for _, part in ipairs(parts) do
-        table.insert(escaped, vim.fn.shellescape(tostring(part)))
-    end
-    return table.concat(escaped, ' ')
-end
-
 function M.launch(opts, server, args)
     args = args or {}
     local title = args[1]
@@ -62,16 +54,6 @@ function M.launch(opts, server, args)
         table.insert(extra_args, args[index])
     end
 
-    local bufnr = vim.api.nvim_create_buf(false, true)
-    M.open_float(bufnr, title)
-    local job_id = vim.fn.jobstart(vim.o.shell, { term = true })
-
-    if type(job_id) ~= 'number' or job_id <= 0 then
-        notify('Could not start terminal for agent launch', vim.log.levels.ERROR)
-        vim.api.nvim_win_close(0, false)
-        return
-    end
-
     local parts = {
         opts.cli,
         agent,
@@ -84,7 +66,17 @@ function M.launch(opts, server, args)
     }
 
     vim.list_extend(parts, extra_args)
-    vim.fn.chansend(job_id, shell_command(parts) .. '\n')
+
+    local bufnr = vim.api.nvim_create_buf(false, true)
+    M.open_float(bufnr, title)
+    local job_id = vim.fn.jobstart(parts, { term = true })
+
+    if type(job_id) ~= 'number' or job_id <= 0 then
+        notify('Could not start terminal for agent launch', vim.log.levels.ERROR)
+        vim.api.nvim_win_close(0, false)
+        return
+    end
+
     vim.cmd('startinsert')
 end
 

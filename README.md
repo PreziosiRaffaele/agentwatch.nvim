@@ -6,7 +6,7 @@ Local Neovim integration for the sibling `agent-watch` CLI.
 
 - `:AgentWatch` opens or refreshes a bottom scratch buffer showing agents attached to the current Neovim server.
 - `:AgentWatchToggle` toggles the Agent Watch window visibility. When opened, the view refreshes while it is visible.
-- `:AgentWatchLaunch <title> [agent] [args...]` opens a terminal and starts an agent through `aw <agent>`.
+- `:AgentWatchLaunch <title> [agent] [args...]` opens a terminal and starts `aw <agent>` directly inside it.
 - `:AgentWatchRename [title]` renames the selected agent row. Without a title, it prompts for one.
 
 Titles with spaces must be quoted, for example `:AgentWatchLaunch "Fix parser" codex`.

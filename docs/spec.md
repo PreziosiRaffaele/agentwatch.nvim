@@ -27,7 +27,7 @@ The plugin communicates with `agent-watchd` using two channels:
 **Launch terminal**
 
 - Each agent is launched in a hidden terminal buffer opened as a centered float.
-- `aw <agent>` is sent to the shell inside the terminal, passing `--nvim-server` and `--nvim-bufnr` so `agent-watchd` can link the launch back to this Neovim session.
+- `aw <agent>` is started directly as the terminal job, passing `--nvim-server` and `--nvim-bufnr` so `agent-watchd` can link the launch back to this Neovim session.
 
 ---
 
@@ -98,7 +98,7 @@ AgentWatchLaunch <title> [agent]
   → ensures Neovim server is running
   → creates a hidden terminal buffer
   → opens it as a centered float
-  → sends to shell: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
+  → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
 
 AgentWatchRename <id> <title>
   → resolves daemon URL from daemon_url, ~/.agent-watch/daemon.json, or default localhost
