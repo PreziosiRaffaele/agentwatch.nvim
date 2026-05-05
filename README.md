@@ -35,6 +35,13 @@ return {
         height = 10,
         fixed_height = true,
         watch_interval = 1000,
+        terminal = {
+            layout = 'float', -- 'float', 'side', or 'tab'
+            side = 'right',
+            width = 80,
+            float_width = 0.9,
+            float_height = 0.85,
+        },
     },
 }
 ```
@@ -45,6 +52,9 @@ return {
 `available_agents` controls which agents can be selected/launched in your space.
 Allowed values are: `codex`, `agent`, `claude`.
 If `available_agents` or `default_agent` are misconfigured, the plugin surfaces an error and falls back to a safe value.
+`terminal.layout` controls where launched and selected agent terminals open. Use `float`, `side`, or `tab`.
+For `side`, `terminal.side` chooses `right` or `left`, and `terminal.width` controls the split width.
+For `float`, `terminal.float_width` and `terminal.float_height` are editor-size fractions from `0` to `1`.
 
 ## Code quality
 

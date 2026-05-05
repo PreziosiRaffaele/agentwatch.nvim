@@ -10,6 +10,13 @@ M.defaults = {
     watch_interval = 1000,
     default_agent = 'codex',
     available_agents = { 'codex', 'agent', 'claude' },
+    terminal = {
+        layout = 'float',
+        side = 'right',
+        width = 80,
+        float_width = 0.9,
+        float_height = 0.85,
+    },
     commands = {
         watch = 'AgentWatch',
         toggle = 'AgentWatchToggle',
@@ -23,6 +30,17 @@ local supported_agent_set = {}
 for _, agent in ipairs(supported_agents) do
     supported_agent_set[agent] = true
 end
+
+local supported_terminal_layout_set = {
+    float = true,
+    side = true,
+    tab = true,
+}
+
+local supported_terminal_side_set = {
+    left = true,
+    right = true,
+}
 
 local function validate_agent_config(opts)
     local configured_agents = opts.available_agents
@@ -64,6 +82,48 @@ local function normalize_height(height)
     return math.floor(height)
 end
 
+local function normalize_positive_int(value, default)
+    value = tonumber(value) or default
+    if value < 1 then
+        return default
+    end
+    return math.floor(value)
+end
+
+local function normalize_fraction(value, default)
+    value = tonumber(value) or default
+    if value <= 0 or value > 1 then
+        return default
+    end
+    return value
+end
+
+local function validate_terminal_config(opts)
+    local terminal = opts.terminal
+    if type(terminal) ~= 'table' then
+        notify(
+            'Invalid terminal config. Use a table with layout, side, width, float_width, and float_height.',
+            vim.log.levels.ERROR
+        )
+        terminal = vim.deepcopy(M.defaults.terminal)
+    end
+
+    if not supported_terminal_layout_set[terminal.layout] then
+        notify('Invalid terminal.layout. Use one of: float, side, tab.', vim.log.levels.ERROR)
+        terminal.layout = M.defaults.terminal.layout
+    end
+
+    if not supported_terminal_side_set[terminal.side] then
+        notify('Invalid terminal.side. Use one of: right, left.', vim.log.levels.ERROR)
+        terminal.side = M.defaults.terminal.side
+    end
+
+    terminal.width = normalize_positive_int(terminal.width, M.defaults.terminal.width)
+    terminal.float_width = normalize_fraction(terminal.float_width, M.defaults.terminal.float_width)
+    terminal.float_height = normalize_fraction(terminal.float_height, M.defaults.terminal.float_height)
+    opts.terminal = terminal
+end
+
 function M.build(opts)
     opts = vim.tbl_deep_extend('force', vim.deepcopy(M.defaults), opts or {})
     opts.cli = vim.fn.expand(opts.cli)
@@ -71,6 +131,7 @@ function M.build(opts)
     opts.height = normalize_height(opts.height)
     opts.watch_interval = tonumber(opts.watch_interval) or M.defaults.watch_interval
     validate_agent_config(opts)
+    validate_terminal_config(opts)
     return opts
 end
 

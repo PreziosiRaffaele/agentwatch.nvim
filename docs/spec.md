@@ -26,7 +26,8 @@ The plugin communicates with `agent-watchd` using two channels:
 
 **Launch terminal**
 
-- Each agent is launched in a hidden terminal buffer opened as a centered float.
+- Each agent is launched in a hidden terminal buffer opened with the configured terminal layout.
+- Supported terminal layouts are `float`, `side`, and `tab`. The default is `float`.
 - `aw <agent>` is started directly as the terminal job, passing `--nvim-server` and `--nvim-bufnr` so `agent-watchd` can link the launch back to this Neovim session.
 
 ---
@@ -43,7 +44,7 @@ The plugin calls `vim.fn.serverstart()` to ensure a server address exists and pa
 | --- | --- |
 | `AgentWatch` | Open or refresh the watch buffer. |
 | `AgentWatchToggle` | Toggle the watch window. Stopping the watch process on close. |
-| `AgentWatchLaunch <title> [agent] [args...]` | Open a float terminal and start a tracked agent. |
+| `AgentWatchLaunch <title> [agent] [args...]` | Open a terminal and start a tracked agent. |
 | `AgentWatchRename [title]` | Rename the selected agent. Prompts if no title is given. |
 
 ---
@@ -54,7 +55,7 @@ Inside the `AgentWatch` buffer:
 
 | Key | Action |
 | --- | --- |
-| `<CR>` | Open the selected agent terminal in a centered float. |
+| `<CR>` | Open the selected agent terminal with the configured terminal layout. |
 | `a` | Prompt for title and agent type, then launch. |
 | `r` | Rename the selected agent. |
 | `dd` | Force-delete the selected agent terminal buffer. |
@@ -73,6 +74,13 @@ require('agent-watch').setup({
     watch_interval = 1000,          -- daemon polling interval in ms
     default_agent  = 'codex',       -- pre-selected agent in the launch prompt
     available_agents = { 'codex', 'agent', 'claude' }, -- agents shown in the picker
+    terminal = {
+        layout       = 'float',      -- 'float', 'side', or 'tab'
+        side         = 'right',      -- side split direction: 'right' or 'left'
+        width        = 80,           -- side split width in columns
+        float_width  = 0.9,          -- float width as editor fraction
+        float_height = 0.85,         -- float height as editor fraction
+    },
     commands = {
         watch  = 'AgentWatch',
         toggle = 'AgentWatchToggle',
@@ -83,6 +91,8 @@ require('agent-watch').setup({
 ```
 
 `available_agents` must be a non-empty subset of `{ 'codex', 'agent', 'claude' }`. `default_agent` must be in `available_agents`. Both are validated at setup time; misconfigurations surface an error and fall back to defaults.
+
+`terminal.layout` must be one of `float`, `side`, or `tab`. Invalid terminal layout settings surface an error and fall back to defaults.
 
 ---
 
@@ -97,7 +107,7 @@ AgentWatch / AgentWatchToggle
 AgentWatchLaunch <title> [agent]
   → ensures Neovim server is running
   → creates a hidden terminal buffer
-  → opens it as a centered float
+  → opens it with the configured terminal layout
   → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
 
 AgentWatchRename <id> <title>

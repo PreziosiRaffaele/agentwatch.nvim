@@ -52,7 +52,7 @@ function M.jump_to_agent()
         return
     end
 
-    terminal.open_float(bufnr, rows.field(row, { 'title', 'name', 'summary' }))
+    terminal.open(state.opts, bufnr, rows.field(row, { 'title', 'name', 'summary' }))
 end
 
 function M.delete_agent()

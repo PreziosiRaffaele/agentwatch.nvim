@@ -3,9 +3,26 @@ local notify = require('agent-watch.notify').notify
 
 local M = {}
 
-function M.open_float(bufnr, title)
-    local width = math.floor(vim.o.columns * 0.9)
-    local height = math.floor(vim.o.lines * 0.85)
+local function terminal_opts(opts)
+    return opts.terminal or {}
+end
+
+local function start_insert(bufnr)
+    if vim.bo[bufnr].buftype == 'terminal' then
+        vim.cmd('startinsert')
+    end
+end
+
+local function set_close_keymap(bufnr)
+    vim.keymap.set('t', '<C-w>q', function()
+        vim.api.nvim_win_close(0, false)
+    end, { buffer = bufnr, silent = true, desc = 'Close agent terminal' })
+end
+
+function M.open_float(opts, bufnr, title)
+    local terminal = terminal_opts(opts)
+    local width = math.max(1, math.floor(vim.o.columns * terminal.float_width))
+    local height = math.max(1, math.floor(vim.o.lines * terminal.float_height))
     local row = math.floor((vim.o.lines - height) / 2)
     local col = math.floor((vim.o.columns - width) / 2)
 
@@ -21,13 +38,44 @@ function M.open_float(bufnr, title)
         title_pos = 'center',
     })
 
-    vim.keymap.set('t', '<C-w>q', function()
-        vim.api.nvim_win_close(0, false)
-    end, { buffer = bufnr, silent = true, desc = 'Close agent float' })
+    set_close_keymap(bufnr)
+    start_insert(bufnr)
+end
 
-    if vim.bo[bufnr].buftype == 'terminal' then
-        vim.cmd('startinsert')
+function M.open_side(opts, bufnr)
+    local terminal = terminal_opts(opts)
+    local modifier = 'botright'
+    if terminal.side == 'left' then
+        modifier = 'topleft'
     end
+
+    vim.cmd(modifier .. ' vertical ' .. terminal.width .. 'split')
+    vim.api.nvim_set_current_buf(bufnr)
+    vim.cmd('vertical resize ' .. terminal.width)
+    set_close_keymap(bufnr)
+    start_insert(bufnr)
+end
+
+function M.open_tab(_, bufnr)
+    vim.cmd('tabnew')
+    vim.api.nvim_set_current_buf(bufnr)
+    set_close_keymap(bufnr)
+    start_insert(bufnr)
+end
+
+function M.open(opts, bufnr, title)
+    local layout = terminal_opts(opts).layout
+    if layout == 'side' then
+        M.open_side(opts, bufnr)
+        return
+    end
+
+    if layout == 'tab' then
+        M.open_tab(opts, bufnr)
+        return
+    end
+
+    M.open_float(opts, bufnr, title)
 end
 
 function M.launch(opts, server, args)
@@ -54,6 +102,7 @@ function M.launch(opts, server, args)
         table.insert(extra_args, args[index])
     end
 
+    local bufnr = vim.api.nvim_create_buf(false, true)
     local parts = {
         opts.cli,
         agent,
@@ -67,8 +116,7 @@ function M.launch(opts, server, args)
 
     vim.list_extend(parts, extra_args)
 
-    local bufnr = vim.api.nvim_create_buf(false, true)
-    M.open_float(bufnr, title)
+    M.open(opts, bufnr, title)
     local job_id = vim.fn.jobstart(parts, { term = true })
 
     if type(job_id) ~= 'number' or job_id <= 0 then
