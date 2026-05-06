@@ -341,7 +341,7 @@ function M.prompt_launch_worktree()
     end)
 end
 
-function M.open_tmux()
+function M.open_worktree()
     local row = window.selected_row()
     if not row then
         return
@@ -358,7 +358,12 @@ function M.open_tmux()
         return
     end
 
-    vim.fn.jobstart({ 'tmux', 'new-window', '-c', folder }, { detach = true })
+    local title = rows.field(row, { 'title', 'name', 'summary' })
+    if title == '' then
+        title = vim.fn.fnamemodify(folder, ':t')
+    end
+
+    vim.fn.jobstart({ 'tmux', 'new-window', '-n', title, '-c', folder }, { detach = true })
 end
 
 local function complete_agent(arg_lead, cmd_line)
@@ -411,7 +416,7 @@ function M.setup(opts)
         rename = M.rename_agent,
         delete = M.delete_agent,
         delete_worktree = M.delete_agent_worktree,
-        open_tmux = M.open_tmux,
+        open_worktree = M.open_worktree,
         close = function()
             watcher.stop()
             window.close()

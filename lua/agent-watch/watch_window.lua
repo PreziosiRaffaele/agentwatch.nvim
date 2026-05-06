@@ -8,7 +8,8 @@ local state = {
     actions = {},
 }
 
-local statusline = 'Agent Watch  <CR>: open  a: add  w: worktree  r: rename  t: tmux  dd: delete  dw: delete worktree'
+local statusline =
+    'Agent Watch  <CR>: open  a: add  w: worktree  r: rename  t: open worktree  dd: delete  dw: delete worktree'
 
 local function valid_win(win)
     return win and vim.api.nvim_win_is_valid(win)
@@ -74,8 +75,8 @@ local function create_buffer()
     vim.keymap.set(
         'n',
         't',
-        state.actions.open_tmux,
-        { buffer = state.buf, silent = true, desc = 'Open tmux window in worktree path' }
+        state.actions.open_worktree,
+        { buffer = state.buf, silent = true, desc = 'Open selected worktree' }
     )
     vim.keymap.set('n', 'q', state.actions.close, { buffer = state.buf, silent = true, desc = 'Close agent watch' })
 end
