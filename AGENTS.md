@@ -59,4 +59,5 @@ When creating lua modules:
 
 ## Verification
 
-After any edit to `*.lua` files, run `stylua --check .` before finishing.
+After any edit to `*.lua` files, run `make quality` before finishing.
+This runs luacheck (static analysis) and stylua (formatting) and must pass with no errors.
