@@ -277,7 +277,7 @@ function M.launch_worktree(args)
     end
 
     local function do_launch(title, branch, agent)
-        local path = worktree.default_path(repo_root, branch)
+        local path = worktree.default_path(repo_root, branch, config.worktree_dir)
         local err = worktree.add(repo_root, branch, path)
         if err then
             notify('git worktree add failed: ' .. err, vim.log.levels.ERROR)

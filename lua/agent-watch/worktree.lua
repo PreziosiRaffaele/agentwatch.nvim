@@ -12,9 +12,16 @@ function M.branch_slug(branch)
     return vim.trim(branch):gsub('[^A-Za-z0-9._]+', '-')
 end
 
-function M.default_path(repo_root, branch)
-    local parent = vim.fn.fnamemodify(repo_root, ':h')
-    return parent .. '/' .. M.branch_slug(branch)
+function M.default_path(repo_root, branch, worktree_dir)
+    local dir = (worktree_dir and worktree_dir ~= '') and worktree_dir or '.worktrees'
+    local base
+    if dir:sub(1, 1) == '/' or dir:sub(1, 1) == '~' then
+        local name = vim.fn.fnamemodify(repo_root, ':t')
+        base = vim.fn.expand(dir) .. '/' .. name
+    else
+        base = repo_root .. '/' .. dir
+    end
+    return base .. '/' .. M.branch_slug(branch)
 end
 
 function M.add(repo_root, branch, path)

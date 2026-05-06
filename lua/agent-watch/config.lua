@@ -17,6 +17,7 @@ M.defaults = {
         float_width = 0.9,
         float_height = 0.85,
     },
+    worktree_dir = '.worktrees',
     commands = {
         watch = 'AgentWatch',
         toggle = 'AgentWatchToggle',
