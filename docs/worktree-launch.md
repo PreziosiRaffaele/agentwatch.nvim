@@ -77,7 +77,8 @@ Failures:
 - Not in a Git repo → error, no terminal created.
 - `git worktree add` fails (path exists, dirty index, etc.) → surface the Git
   error, do not launch the agent.
-- Never delete partial directories from the plugin. Cleanup is the user's job.
+- Never delete partial directories after a failed launch. For successful
+  worktree launches, use the watch-buffer `dw` cleanup flow.
 
 ---
 
@@ -111,7 +112,8 @@ If `$TMUX` is unset, `t` notifies an error instead of running.
 
 ## Non-Goals
 
-- No automatic worktree or branch cleanup.
+- No automatic worktree or branch cleanup. Worktree directory cleanup is an
+  explicit watch-buffer `dw` action, and branch cleanup remains manual.
 - No daemon schema changes.
 - No separate worktree rows in the watch buffer.
 

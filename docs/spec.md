@@ -64,6 +64,7 @@ Inside the `AgentWatch` buffer:
 | `r` | Rename the selected agent. |
 | `t` | Open a new tmux window in the selected agent's folder. |
 | `dd` | Force-delete the selected agent terminal buffer. |
+| `dw` | Delete the selected agent's Git worktree after confirmation. Does not delete the branch. |
 | `q` | Close the watch window and stop the watch process. |
 
 Global normal-mode mappings:
@@ -146,6 +147,15 @@ AgentWatchLaunchWorktree <title> <branch> [agent]
   → creates a hidden terminal buffer with cwd set to the worktree path
   → opens it with the configured terminal layout
   → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
+
+Watch-buffer dw
+  → reads the selected row's folder
+  → verifies the folder exists and is a registered linked Git worktree
+  → refuses to remove the repository main working tree
+  → prompts: Delete worktree <absolute-path>? [y/N]
+  → on confirmation, runs: git -C <absolute-path> worktree remove <absolute-path>
+  → on success, force-deletes the selected terminal buffer if it still exists
+  → refreshes the watch buffer
 
 AgentWatchRename <id> <title>
   → resolves daemon URL from daemon_url, ~/.agent-watch/daemon.json, or default localhost
