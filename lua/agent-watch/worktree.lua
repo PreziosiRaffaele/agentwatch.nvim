@@ -95,8 +95,8 @@ function M.removable_path(folder)
     end
 
     local toplevel_output, toplevel_err = git_output(path, { 'rev-parse', '--show-toplevel' })
-    if toplevel_err then
-        return nil, 'Path is not inside a Git worktree: ' .. toplevel_err
+    if toplevel_err or not toplevel_output then
+        return nil, 'Path is not inside a Git worktree: ' .. (toplevel_err or 'unknown error')
     end
 
     local toplevel = normalize_path(vim.split(toplevel_output, '\n', { plain = true })[1] or '')
@@ -105,8 +105,8 @@ function M.removable_path(folder)
     end
 
     local list_output, list_err = git_output(path, { 'worktree', 'list', '--porcelain' })
-    if list_err then
-        return nil, 'Could not inspect Git worktrees: ' .. list_err
+    if list_err or not list_output then
+        return nil, 'Could not inspect Git worktrees: ' .. (list_err or 'unknown error')
     end
 
     local main_worktree = nil
@@ -129,17 +129,28 @@ function M.removable_path(folder)
         return nil, 'Refusing to delete the repository main working tree: ' .. path
     end
 
-    return path, nil
+    return path, nil, main_worktree
 end
 
 function M.remove(folder)
-    local path, removable_err = M.removable_path(folder)
-    if removable_err then
+    local path, removable_err, main_worktree = M.removable_path(folder)
+    if removable_err or not path then
         return nil, removable_err
     end
 
     local _, remove_err = git_output(path, { 'worktree', 'remove', path })
+
     if remove_err then
+        if main_worktree and not vim.uv.fs_stat(path) then
+            -- Git can delete the directory before failing to remove admin files.
+            local _, prune_err = git_output(main_worktree, { 'worktree', 'prune' })
+            if not prune_err then
+                return path, nil
+            end
+
+            return nil, remove_err .. '; git worktree prune failed: ' .. prune_err
+        end
+
         return nil, remove_err
     end
 
