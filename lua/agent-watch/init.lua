@@ -164,6 +164,41 @@ function M.delete_agent()
     watcher.refresh({ loading = false })
 end
 
+function M.delete_agent_worktree()
+    local worktree = require('agent-watch.worktree')
+    local row = window.selected_row()
+    if not row then
+        return
+    end
+
+    local folder = rows.field(row, { 'folder' })
+    local path, removable_err = worktree.removable_path(folder)
+    if removable_err then
+        notify(removable_err, vim.log.levels.WARN)
+        return
+    end
+
+    local answer = vim.fn.input('Delete worktree ' .. path .. '? [y/N] ')
+    answer = vim.trim(answer or ''):lower()
+    if answer ~= 'y' and answer ~= 'yes' then
+        return
+    end
+
+    local removed_path, remove_err = worktree.remove(path)
+    if remove_err then
+        notify('git worktree remove failed: ' .. remove_err, vim.log.levels.ERROR)
+        return
+    end
+
+    local bufnr = rows.bufnr(row)
+    if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+        vim.api.nvim_buf_delete(bufnr, { force = true })
+    end
+
+    notify('Deleted worktree ' .. removed_path)
+    watcher.refresh({ loading = false })
+end
+
 function M.rename_agent(args)
     local row = window.selected_row()
     if not row then
@@ -277,7 +312,7 @@ function M.launch_worktree(args)
     end
 
     local function do_launch(title, branch, agent)
-        local path = worktree.default_path(repo_root, branch)
+        local path = worktree.default_path(repo_root, branch, config.worktree_dir)
         local err = worktree.add(repo_root, branch, path)
         if err then
             notify('git worktree add failed: ' .. err, vim.log.levels.ERROR)
@@ -380,6 +415,7 @@ function M.setup(opts)
         launch_worktree = M.prompt_launch_worktree,
         rename = M.rename_agent,
         delete = M.delete_agent,
+        delete_worktree = M.delete_agent_worktree,
         open_worktree = M.open_worktree,
         close = function()
             watcher.stop()

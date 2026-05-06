@@ -8,7 +8,8 @@ local state = {
     actions = {},
 }
 
-local statusline = 'Agent Watch  <CR>: open  a: add  w: worktree  r: rename  t: open worktree  dd: delete'
+local statusline =
+    'Agent Watch  <CR>: open  a: add  w: worktree  r: rename  t: open worktree  dd: delete  dw: delete worktree'
 
 local function valid_win(win)
     return win and vim.api.nvim_win_is_valid(win)
@@ -64,6 +65,12 @@ local function create_buffer()
         'dd',
         state.actions.delete,
         { buffer = state.buf, silent = true, desc = 'Delete agent terminal' }
+    )
+    vim.keymap.set(
+        'n',
+        'dw',
+        state.actions.delete_worktree,
+        { buffer = state.buf, silent = true, desc = 'Delete agent worktree' }
     )
     vim.keymap.set(
         'n',

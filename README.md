@@ -24,6 +24,7 @@ Inside the `AgentWatch` buffer:
 - `r` renames the selected agent.
 - `t` opens the selected agent's worktree. The current opener is tmux, using the agent title as the window name.
 - `dd` force-deletes the selected agent terminal buffer.
+- `dw` deletes the selected agent's Git worktree after confirmation. It removes the worktree directory, not the branch.
 - `q` closes the watch window.
 
 Global normal-mode mappings:

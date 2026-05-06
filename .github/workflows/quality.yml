@@ -7,17 +7,19 @@ on:
       - main
 
 jobs:
-  stylua:
-    name: Stylua
+  quality:
+    name: Quality
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Install Stylua
+      - name: Install tools
         run: |
+          sudo apt-get install -y luarocks
+          sudo luarocks install luacheck
           cargo install stylua --locked
 
-      - name: Check formatting
+      - name: Check
         run: |
-          stylua --check .
+          make quality
