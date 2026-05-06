@@ -1,5 +1,30 @@
 local M = {}
 
+local function normalize_path(path)
+    if type(path) ~= 'string' or vim.trim(path) == '' then
+        return nil
+    end
+
+    local normalized = vim.fn.fnamemodify(path, ':p')
+    if normalized ~= '/' then
+        normalized = normalized:gsub('/+$', '')
+    end
+    normalized = vim.uv.fs_realpath(normalized) or normalized
+    return normalized
+end
+
+local function git_output(folder, args)
+    local parts = { 'git', '-C', folder }
+    vim.list_extend(parts, args)
+
+    local escaped = vim.tbl_map(vim.fn.shellescape, parts)
+    local result = vim.fn.system(table.concat(escaped, ' ') .. ' 2>&1')
+    if vim.v.shell_error ~= 0 then
+        return nil, vim.trim(result)
+    end
+    return result, nil
+end
+
 function M.repo_root()
     local result = vim.fn.systemlist('git rev-parse --show-toplevel')
     if vim.v.shell_error ~= 0 or not result[1] then
@@ -53,6 +78,72 @@ function M.add(repo_root, branch, path)
         return vim.trim(result)
     end
     return nil
+end
+
+function M.removable_path(folder)
+    local path = normalize_path(folder)
+    if not path then
+        return nil, 'Selected agent has no worktree path'
+    end
+
+    local stat = vim.uv.fs_stat(path)
+    if not stat then
+        return nil, 'Worktree path does not exist: ' .. path
+    end
+    if stat.type ~= 'directory' then
+        return nil, 'Worktree path is not a directory: ' .. path
+    end
+
+    local toplevel_output, toplevel_err = git_output(path, { 'rev-parse', '--show-toplevel' })
+    if toplevel_err then
+        return nil, 'Path is not inside a Git worktree: ' .. toplevel_err
+    end
+
+    local toplevel = normalize_path(vim.split(toplevel_output, '\n', { plain = true })[1] or '')
+    if toplevel ~= path then
+        return nil, 'Path is not a registered Git worktree: ' .. path
+    end
+
+    local list_output, list_err = git_output(path, { 'worktree', 'list', '--porcelain' })
+    if list_err then
+        return nil, 'Could not inspect Git worktrees: ' .. list_err
+    end
+
+    local main_worktree = nil
+    local registered = false
+    for line in list_output:gmatch('[^\r\n]+') do
+        local entry = normalize_path(line:match('^worktree (.+)$') or '')
+        if entry then
+            main_worktree = main_worktree or entry
+            if entry == path then
+                registered = true
+            end
+        end
+    end
+
+    if not registered then
+        return nil, 'Path is not a registered Git worktree: ' .. path
+    end
+
+    if path == main_worktree then
+        return nil, 'Refusing to delete the repository main working tree: ' .. path
+    end
+
+    return path, nil
+end
+
+function M.remove(folder)
+    local path, removable_err = M.removable_path(folder)
+    if removable_err then
+        return nil, removable_err
+    end
+
+    local _, remove_err = git_output(path, { 'worktree', 'remove', path })
+    if remove_err then
+        return nil, remove_err
+    end
+
+    return path, nil
 end
 
 return M
