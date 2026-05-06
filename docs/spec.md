@@ -66,6 +66,18 @@ Inside the `AgentWatch` buffer:
 | `dd` | Force-delete the selected agent terminal buffer. |
 | `dw` | Delete the selected agent's Git worktree after confirmation. Does not delete the branch. |
 | `q` | Close the watch window and stop the watch process. |
+| `?` | Toggle the floating help window for the complete watch-buffer keymap. |
+
+The watch-window statusline is intentionally compact:
+
+```text
+Agent Watch  <CR> open  a add  r rename  ? help  q close
+```
+
+The full keymap is available from a centered floating help window opened with `?`.
+Inside that help window, `?`, `q`, and `<Esc>` close the help. The help buffer is
+scratch, unlisted, readonly, and not modifiable. Closing the watch window also
+closes any visible help window.
 
 Global normal-mode mappings:
 

@@ -4,19 +4,38 @@ local state = {
     opts = nil,
     buf = nil,
     win = nil,
+    help_buf = nil,
+    help_win = nil,
     rows_by_line = {},
     actions = {},
 }
 
-local statusline =
-    'Agent Watch  <CR>: open  a: add  w: worktree  r: rename  t: open worktree  dd: delete  dw: delete worktree'
+local statusline = 'Agent Watch  <CR> open  a add  r rename  ? help  q close'
+
+local help_lines = {
+    'Agent Watch',
+    '',
+    '<CR>  Open selected agent terminal',
+    'a     Launch agent',
+    'w     Launch worktree agent',
+    'r     Rename selected agent',
+    't     Open selected worktree',
+    'dd    Delete selected terminal buffer',
+    'dw    Delete selected worktree and terminal buffer',
+    'q     Close Agent Watch',
+    '?     Close this help',
+}
 
 local function valid_win(win)
     return win and vim.api.nvim_win_is_valid(win)
 end
 
+local function valid_buf(buf)
+    return buf and vim.api.nvim_buf_is_valid(buf)
+end
+
 local function visible_window()
-    if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then
+    if not valid_buf(state.buf) then
         return nil
     end
 
@@ -27,6 +46,110 @@ local function visible_window()
     end
 
     return nil
+end
+
+local function visible_help_window()
+    if valid_win(state.help_win) then
+        return state.help_win
+    end
+
+    state.help_win = nil
+    return nil
+end
+
+local function close_help()
+    local win = visible_help_window()
+    local buf = state.help_buf
+
+    if win then
+        vim.api.nvim_win_close(win, false)
+    end
+
+    if valid_buf(buf) then
+        vim.api.nvim_buf_delete(buf, { force = true })
+    end
+
+    state.help_win = nil
+    state.help_buf = nil
+end
+
+local function padded_help_lines()
+    local lines = { '' }
+    for _, line in ipairs(help_lines) do
+        table.insert(lines, '  ' .. line)
+    end
+    table.insert(lines, '')
+    return lines
+end
+
+local function max_line_width(lines)
+    local width = 1
+    for _, line in ipairs(lines) do
+        width = math.max(width, vim.fn.strdisplaywidth(line))
+    end
+    return width
+end
+
+local function help_window_config(lines)
+    local columns = vim.o.columns
+    local rows = vim.o.lines - vim.o.cmdheight
+    local width = math.min(max_line_width(lines) + 2, math.max(columns - 4, 1))
+    local height = math.min(#lines, math.max(rows - 4, 1))
+
+    return {
+        relative = 'editor',
+        width = width,
+        height = height,
+        col = math.max(math.floor((columns - width) / 2), 0),
+        row = math.max(math.floor((rows - height) / 2), 0),
+        style = 'minimal',
+        border = 'single',
+    }
+end
+
+local function set_help_keymaps(buf)
+    for _, lhs in ipairs({ '?', 'q', '<Esc>' }) do
+        vim.keymap.set('n', lhs, close_help, { buffer = buf, silent = true, desc = 'Close Agent Watch help' })
+    end
+end
+
+local function open_help()
+    if visible_help_window() then
+        return
+    end
+
+    local lines = padded_help_lines()
+    local buf = vim.api.nvim_create_buf(false, true)
+    state.help_buf = buf
+    vim.bo[buf].buftype = 'nofile'
+    vim.bo[buf].bufhidden = 'wipe'
+    vim.bo[buf].swapfile = false
+    vim.bo[buf].filetype = 'agent-watch-help'
+    vim.bo[buf].modifiable = true
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.bo[buf].modifiable = false
+    vim.bo[buf].readonly = true
+    set_help_keymaps(buf)
+
+    local config = help_window_config(lines)
+    local ok, win = pcall(vim.api.nvim_open_win, buf, true, config)
+    if not ok then
+        config.border = nil
+        win = vim.api.nvim_open_win(buf, true, config)
+    end
+
+    state.help_win = win
+    vim.wo[win].wrap = false
+    vim.wo[win].cursorline = false
+end
+
+local function toggle_help()
+    if visible_help_window() then
+        close_help()
+        return
+    end
+
+    open_help()
 end
 
 local function set_window_options(win)
@@ -78,12 +201,14 @@ local function create_buffer()
         state.actions.open_worktree,
         { buffer = state.buf, silent = true, desc = 'Open selected worktree' }
     )
+    vim.keymap.set('n', '?', toggle_help, { buffer = state.buf, silent = true, desc = 'Show Agent Watch help' })
     vim.keymap.set('n', 'q', state.actions.close, { buffer = state.buf, silent = true, desc = 'Close agent watch' })
 end
 
 function M.setup(opts, actions)
     state.opts = opts
     state.actions = actions
+    close_help()
 end
 
 function M.visible()
@@ -111,6 +236,7 @@ function M.open()
 end
 
 function M.close()
+    close_help()
     local win = visible_window()
     if win then
         vim.api.nvim_win_close(win, false)

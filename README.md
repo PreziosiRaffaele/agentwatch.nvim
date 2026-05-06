@@ -26,6 +26,7 @@ Inside the `AgentWatch` buffer:
 - `dd` force-deletes the selected agent terminal buffer.
 - `dw` deletes the selected agent's Git worktree after confirmation. It removes the worktree directory, not the branch.
 - `q` closes the watch window.
+- `?` toggles the floating help window for the complete watch-buffer keymap.
 
 Global normal-mode mappings:
 
