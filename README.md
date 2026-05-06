@@ -22,7 +22,7 @@ Inside the `AgentWatch` buffer:
 - `a` prompts for title/agent and launches a new tracked agent.
 - `w` prompts for title/branch and launches the default agent in a Git worktree.
 - `r` renames the selected agent.
-- `t` opens a new tmux window in the selected agent's folder.
+- `t` opens the selected agent's worktree. The current opener is tmux, using the agent title as the window name.
 - `dd` force-deletes the selected agent terminal buffer.
 - `q` closes the watch window.
 

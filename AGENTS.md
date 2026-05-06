@@ -4,11 +4,9 @@
 
 This is a local Neovim plugin for the sibling `agent-watch` CLI.
 
-- Plugin root: `/Users/raffaelepreziosi/code/agent-watch-nvim`
+- Plugin root: this repository.
 - CLI dependency: `/Users/raffaelepreziosi/code/agent-watch/bin/agent-watch.js`
 - Dotfiles lazy.nvim spec: `/Users/raffaelepreziosi/dotfiles/config/nvim/lua/rpreziosi/plugins/agentWatch.lua`
-
-The plugin is loaded locally from `~/code/agent-watch-nvim`.
 
 ## Source of Truth
 

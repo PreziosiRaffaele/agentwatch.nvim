@@ -62,7 +62,7 @@ Inside the `AgentWatch` buffer:
 | `a` | Prompt for title and agent type, then launch. |
 | `w` | Prompt for title and branch, then launch the default agent in a new Git worktree. |
 | `r` | Rename the selected agent. |
-| `t` | Open a new tmux window in the selected agent's folder. |
+| `t` | Open the selected agent's worktree with the configured opener. The current opener is tmux. |
 | `dd` | Force-delete the selected agent terminal buffer. |
 | `q` | Close the watch window and stop the watch process. |
 
@@ -151,4 +151,9 @@ AgentWatchRename <id> <title>
   → resolves daemon URL from daemon_url, ~/.agent-watch/daemon.json, or default localhost
   → PATCH <daemon_url>/launches/<id>  body: { "title": "<title>" }
   → refreshes the watch buffer on success
+
+Open selected worktree
+  → selected row folder from watch buffer
+  → requires $TMUX while tmux is the opener
+  → starts detached job: tmux new-window -n <title> -c <folder>
 ```
