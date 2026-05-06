@@ -232,21 +232,113 @@ function M.prompt_launch()
     end)
 end
 
-function M.launch(args)
+function M.launch(args, cwd)
     local nvim_server = server.ensure()
     if not nvim_server then
         return
     end
 
-    local bufnr = terminal.launch(state.opts, nvim_server, args)
+    local bufnr = terminal.launch(state.opts, nvim_server, args, cwd)
     if bufnr then
         remember_latest(bufnr)
     end
 end
 
+function M.launch_worktree(args)
+    local worktree = require('agent-watch.worktree')
+    args = args or {}
+
+    local given_title = args[1]
+    local given_branch = args[2]
+    local given_agent = args[3]
+
+    if
+        not given_title
+        or vim.trim(given_title) == ''
+        or not given_branch
+        or vim.trim(given_branch) == ''
+        or #args > 3
+    then
+        notify('Usage: AgentWatchLaunchWorktree <title> <branch> [agent]', vim.log.levels.ERROR)
+        return
+    end
+
+    given_title = vim.trim(given_title)
+    given_branch = vim.trim(given_branch)
+    given_agent = given_agent and vim.trim(given_agent) or nil
+    if given_agent == '' then
+        given_agent = nil
+    end
+
+    local repo_root = worktree.repo_root()
+    if not repo_root then
+        notify('Not in a Git repository', vim.log.levels.ERROR)
+        return
+    end
+
+    local function do_launch(title, branch, agent)
+        local path = worktree.default_path(repo_root, branch)
+        local err = worktree.add(repo_root, branch, path)
+        if err then
+            notify('git worktree add failed: ' .. err, vim.log.levels.ERROR)
+            return
+        end
+        M.launch({ title, agent }, path)
+    end
+
+    do_launch(given_title, given_branch, given_agent)
+end
+
+function M.prompt_launch_worktree()
+    vim.ui.input({ prompt = 'Agent title: ' }, function(title)
+        title = vim.trim(title or '')
+        if title == '' then
+            return
+        end
+
+        vim.ui.input({ prompt = 'Branch: ' }, function(branch)
+            branch = vim.trim(branch or '')
+            if branch == '' then
+                return
+            end
+            M.launch_worktree({ title, branch })
+        end)
+    end)
+end
+
+function M.open_tmux()
+    local row = window.selected_row()
+    if not row then
+        return
+    end
+
+    local folder = rows.field(row, { 'folder' })
+    if folder == '' then
+        notify('No worktree path for selected agent', vim.log.levels.WARN)
+        return
+    end
+
+    if not vim.env.TMUX or vim.env.TMUX == '' then
+        notify('Not in a tmux session ($TMUX is unset)', vim.log.levels.ERROR)
+        return
+    end
+
+    vim.fn.jobstart({ 'tmux', 'new-window', '-c', folder }, { detach = true })
+end
+
 local function complete_agent(arg_lead, cmd_line)
     local args = vim.split(cmd_line, '%s+', { trimempty = true })
     if #args == 3 then
+        return vim.tbl_filter(function(agent)
+            return vim.startswith(agent, arg_lead)
+        end, state.opts.available_agents)
+    end
+    return {}
+end
+
+local function complete_worktree_agent(arg_lead, cmd_line)
+    local args = vim.split(cmd_line, '%s+', { trimempty = true })
+    if #args == 4 then
         return vim.tbl_filter(function(agent)
             return vim.startswith(agent, arg_lead)
         end, state.opts.available_agents)
@@ -280,8 +372,10 @@ function M.setup(opts)
     window.setup(state.opts, {
         jump = M.jump_to_agent,
         launch = M.prompt_launch,
+        launch_worktree = M.prompt_launch_worktree,
         rename = M.rename_agent,
         delete = M.delete_agent,
+        open_tmux = M.open_tmux,
         close = function()
             watcher.stop()
             window.close()
@@ -293,6 +387,7 @@ function M.setup(opts)
     pcall(vim.api.nvim_del_user_command, state.opts.commands.toggle_latest)
     pcall(vim.api.nvim_del_user_command, state.opts.commands.launch)
     pcall(vim.api.nvim_del_user_command, state.opts.commands.rename)
+    pcall(vim.api.nvim_del_user_command, state.opts.commands.launch_worktree)
 
     vim.api.nvim_create_user_command(state.opts.commands.watch, M.refresh, {
         desc = 'Open Agent Watch',
@@ -319,6 +414,14 @@ function M.setup(opts)
     end, {
         nargs = '*',
         desc = 'Rename the selected Agent Watch row',
+    })
+
+    vim.api.nvim_create_user_command(state.opts.commands.launch_worktree, function(command)
+        M.launch_worktree(command.fargs)
+    end, {
+        nargs = '+',
+        complete = complete_worktree_agent,
+        desc = 'Launch an agent in a new Git worktree',
     })
 end
 

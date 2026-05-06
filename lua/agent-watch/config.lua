@@ -23,6 +23,7 @@ M.defaults = {
         toggle_latest = 'AgentWatchToggleLatest',
         launch = 'AgentWatchLaunch',
         rename = 'AgentWatchRename',
+        launch_worktree = 'AgentWatchLaunchWorktree',
     },
     keymaps = {
         toggle_latest = '<C-\\><C-\\>',

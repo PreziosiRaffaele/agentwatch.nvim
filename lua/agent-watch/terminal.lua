@@ -103,15 +103,14 @@ function M.open(opts, bufnr)
     M.open_float(opts, bufnr)
 end
 
-function M.launch(opts, server, args)
+function M.launch(opts, server, args, cwd)
     args = args or {}
     local title = args[1]
     local agent = args[2] or opts.default_agent
     local configured_agent_set = config.available_agent_set(opts)
-    local extra_args = {}
 
-    if not title or title == '' then
-        notify('Usage: AgentWatchLaunch <title> [agent] [args...]', vim.log.levels.ERROR)
+    if not title or title == '' or #args > 2 then
+        notify('Usage: AgentWatchLaunch <title> [agent]', vim.log.levels.ERROR)
         return
     end
 
@@ -121,10 +120,6 @@ function M.launch(opts, server, args)
             vim.log.levels.ERROR
         )
         return
-    end
-
-    for index = args[2] and 3 or 2, #args do
-        table.insert(extra_args, args[index])
     end
 
     local bufnr = vim.api.nvim_create_buf(false, true)
@@ -142,16 +137,20 @@ function M.launch(opts, server, args)
         bufnr,
     }
 
-    vim.list_extend(parts, extra_args)
-
     vim.api.nvim_create_autocmd('TermOpen', {
         buffer = bufnr,
         once = true,
-        callback = function() set_buffer_name(bufnr) end,
+        callback = function()
+            set_buffer_name(bufnr)
+        end,
     })
 
     M.open(opts, bufnr)
-    local job_id = vim.fn.jobstart(parts, { term = true })
+    local jobstart_opts = { term = true }
+    if cwd then
+        jobstart_opts.cwd = cwd
+    end
+    local job_id = vim.fn.jobstart(parts, jobstart_opts)
 
     if type(job_id) ~= 'number' or job_id <= 0 then
         notify('Could not start terminal for agent launch', vim.log.levels.ERROR)

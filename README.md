@@ -7,10 +7,12 @@ Local Neovim integration for the sibling `agent-watch` CLI.
 - `:AgentWatch` opens or refreshes a bottom scratch buffer showing agents attached to the current Neovim server.
 - `:AgentWatchToggle` toggles the Agent Watch window visibility. When opened, the view refreshes while it is visible.
 - `:AgentWatchToggleLatest` toggles the latest agent terminal. It closes the terminal when visible and reopens it when hidden.
-- `:AgentWatchLaunch <title> [agent] [args...]` opens a terminal and starts `aw <agent>` directly inside it.
+- `:AgentWatchLaunch <title> [agent]` opens a terminal and starts `aw <agent>` directly inside it.
+- `:AgentWatchLaunchWorktree <title> <branch> [agent]` creates a Git worktree and starts a tracked agent inside it.
 - `:AgentWatchRename [title]` renames the selected agent row. Without a title, it prompts for one.
 
-Titles with spaces must be quoted, for example `:AgentWatchLaunch "Fix parser" codex`.
+Titles with spaces must be quoted, for example `:AgentWatchLaunch "Fix parser" codex`
+or `:AgentWatchLaunchWorktree "Fix parser" fix/parser codex`.
 
 ## Mappings
 
@@ -18,7 +20,9 @@ Inside the `AgentWatch` buffer:
 
 - `<CR>` jumps to the selected agent terminal buffer.
 - `a` prompts for title/agent and launches a new tracked agent.
+- `w` prompts for title/branch and launches the default agent in a Git worktree.
 - `r` renames the selected agent.
+- `t` opens a new tmux window in the selected agent's folder.
 - `dd` force-deletes the selected agent terminal buffer.
 - `q` closes the watch window.
 
@@ -35,7 +39,7 @@ Inside agent terminal buffers, in terminal and normal mode:
 ```lua
 return {
     dir = '~/code/agent-watch-nvim',
-    cmd = { 'AgentWatch', 'AgentWatchToggle', 'AgentWatchToggleLatest', 'AgentWatchLaunch', 'AgentWatchRename' },
+    cmd = { 'AgentWatch', 'AgentWatchToggle', 'AgentWatchToggleLatest', 'AgentWatchLaunch', 'AgentWatchLaunchWorktree', 'AgentWatchRename' },
     opts = {
         cli = 'aw',
         daemon_url = nil,

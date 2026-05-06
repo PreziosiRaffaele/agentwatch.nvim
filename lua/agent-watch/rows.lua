@@ -10,8 +10,7 @@ local function relative_time(ts)
         epoch = ts
     else
         local s = tostring(ts)
-        local year, month, day, hour, min, sec =
-            s:match('^(%d%d%d%d)-(%d%d)-(%d%d)[T ](%d%d):(%d%d):(%d%d)')
+        local year, month, day, hour, min, sec = s:match('^(%d%d%d%d)-(%d%d)-(%d%d)[T ](%d%d):(%d%d):(%d%d)')
         if not year then
             return s
         end

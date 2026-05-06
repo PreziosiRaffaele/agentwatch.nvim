@@ -46,7 +46,8 @@ The plugin calls `vim.fn.serverstart()` to ensure a server address exists and pa
 | `AgentWatch` | Open or refresh the watch buffer. |
 | `AgentWatchToggle` | Toggle the watch window. Stopping the watch process on close. |
 | `AgentWatchToggleLatest` | Toggle the latest agent terminal. Closes it when visible, opens it when hidden. |
-| `AgentWatchLaunch <title> [agent] [args...]` | Open a terminal and start a tracked agent. |
+| `AgentWatchLaunch <title> [agent]` | Open a terminal and start a tracked agent. |
+| `AgentWatchLaunchWorktree <title> <branch> [agent]` | Create a Git worktree, then open a terminal and start a tracked agent in it. |
 | `AgentWatchRename [title]` | Rename the selected agent. Prompts if no title is given. |
 
 ---
@@ -59,7 +60,9 @@ Inside the `AgentWatch` buffer:
 | --- | --- |
 | `<CR>` | Open the selected agent terminal with the configured terminal layout. |
 | `a` | Prompt for title and agent type, then launch. |
+| `w` | Prompt for title and branch, then launch the default agent in a new Git worktree. |
 | `r` | Rename the selected agent. |
+| `t` | Open a new tmux window in the selected agent's folder. |
 | `dd` | Force-delete the selected agent terminal buffer. |
 | `q` | Close the watch window and stop the watch process. |
 
@@ -100,6 +103,7 @@ require('agent-watch').setup({
         toggle = 'AgentWatchToggle',
         toggle_latest = 'AgentWatchToggleLatest',
         launch = 'AgentWatchLaunch',
+        launch_worktree = 'AgentWatchLaunchWorktree',
         rename = 'AgentWatchRename',
     },
     keymaps = {
@@ -131,6 +135,15 @@ AgentWatchToggleLatest
 AgentWatchLaunch <title> [agent]
   → ensures Neovim server is running
   → creates a hidden terminal buffer
+  → opens it with the configured terminal layout
+  → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
+
+AgentWatchLaunchWorktree <title> <branch> [agent]
+  → resolves the current Git repository root
+  → uses the provided agent, or default_agent when omitted
+  → branch_slug is the trimmed branch with non-[A-Za-z0-9._] runs replaced by -
+  → creates a Git worktree at ../<branch_slug>
+  → creates a hidden terminal buffer with cwd set to the worktree path
   → opens it with the configured terminal layout
   → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
 
