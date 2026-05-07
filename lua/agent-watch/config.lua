@@ -19,14 +19,6 @@ M.defaults = {
     },
     worktree_dir = '.worktrees',
     worktree_opener = 'nvim',
-    commands = {
-        watch = 'AgentWatch',
-        toggle = 'AgentWatchToggle',
-        toggle_latest = 'AgentWatchToggleLatest',
-        launch = 'AgentWatchLaunch',
-        rename = 'AgentWatchRename',
-        launch_worktree = 'AgentWatchLaunchWorktree',
-    },
     keymaps = {
         toggle_latest = '<C-\\><C-\\>',
     },

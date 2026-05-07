@@ -80,7 +80,7 @@ function M.add(repo_root, branch, path)
     return nil
 end
 
-function M.removable_path(folder)
+local function registered_worktree_path(folder)
     local path = normalize_path(folder)
     if not path then
         return nil, 'Selected agent has no worktree path'
@@ -88,30 +88,22 @@ function M.removable_path(folder)
 
     local stat = vim.uv.fs_stat(path)
     if not stat then
-        return nil, 'Worktree path does not exist: ' .. path
+        return nil, 'Path does not exist: ' .. path
     end
     if stat.type ~= 'directory' then
-        return nil, 'Worktree path is not a directory: ' .. path
-    end
-
-    local toplevel_output, toplevel_err = git_output(path, { 'rev-parse', '--show-toplevel' })
-    if toplevel_err then
-        return nil, 'Path is not inside a Git worktree: ' .. toplevel_err
-    end
-
-    local toplevel = normalize_path(vim.split(toplevel_output, '\n', { plain = true })[1] or '')
-    if toplevel ~= path then
-        return nil, 'Path is not a registered Git worktree: ' .. path
+        return nil, 'Path is not a directory: ' .. path
     end
 
     local list_output, list_err = git_output(path, { 'worktree', 'list', '--porcelain' })
-    if list_err then
-        return nil, 'Could not inspect Git worktrees: ' .. list_err
+    if list_err or not list_output then
+        return nil, 'Path is not a registered Git worktree: ' .. path
     end
 
     local main_worktree = nil
     local registered = false
-    for line in list_output:gmatch('[^\r\n]+') do
+    for line in
+        (list_output --[[@as string]]):gmatch('[^\r\n]+')
+    do
         local entry = normalize_path(line:match('^worktree (.+)$') or '')
         if entry then
             main_worktree = main_worktree or entry
@@ -125,21 +117,45 @@ function M.removable_path(folder)
         return nil, 'Path is not a registered Git worktree: ' .. path
     end
 
+    return path, nil, main_worktree
+end
+
+function M.attachable_path(folder)
+    return registered_worktree_path(folder)
+end
+
+function M.removable_path(folder)
+    local path, err, main_worktree = registered_worktree_path(folder)
+    if err then
+        return nil, err
+    end
+
     if path == main_worktree then
         return nil, 'Refusing to delete the repository main working tree: ' .. path
     end
 
-    return path, nil
+    return path, nil, main_worktree
 end
 
 function M.remove(folder)
-    local path, removable_err = M.removable_path(folder)
-    if removable_err then
+    local path, removable_err, main_worktree = M.removable_path(folder)
+    if removable_err or not path then
         return nil, removable_err
     end
 
     local _, remove_err = git_output(path, { 'worktree', 'remove', path })
+
     if remove_err then
+        if main_worktree and not vim.uv.fs_stat(path) then
+            -- Git can delete the directory before failing to remove admin files.
+            local _, prune_err = git_output(main_worktree, { 'worktree', 'prune' })
+            if not prune_err then
+                return path, nil
+            end
+
+            return nil, remove_err .. '; git worktree prune failed: ' .. prune_err
+        end
+
         return nil, remove_err
     end
 
