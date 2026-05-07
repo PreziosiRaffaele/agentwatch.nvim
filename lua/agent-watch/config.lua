@@ -18,14 +18,6 @@ M.defaults = {
         float_height = 0.85,
     },
     worktree_dir = '.worktrees',
-    commands = {
-        watch = 'AgentWatch',
-        toggle = 'AgentWatchToggle',
-        toggle_latest = 'AgentWatchToggleLatest',
-        launch = 'AgentWatchLaunch',
-        rename = 'AgentWatchRename',
-        launch_worktree = 'AgentWatchLaunchWorktree',
-    },
     keymaps = {
         toggle_latest = '<C-\\><C-\\>',
     },
