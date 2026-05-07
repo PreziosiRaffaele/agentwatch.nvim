@@ -111,7 +111,9 @@ function M.removable_path(folder)
 
     local main_worktree = nil
     local registered = false
-    for line in list_output:gmatch('[^\r\n]+') do
+    for line in
+        (list_output --[[@as string]]):gmatch('[^\r\n]+')
+    do
         local entry = normalize_path(line:match('^worktree (.+)$') or '')
         if entry then
             main_worktree = main_worktree or entry

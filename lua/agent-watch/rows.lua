@@ -17,12 +17,12 @@ local function relative_time(ts)
         -- os.time interprets the table as local time; if the daemon sends UTC
         -- timestamps (Z suffix), compute the local→UTC offset and correct.
         local naive = os.time({
-            year = tonumber(year),
-            month = tonumber(month),
-            day = tonumber(day),
-            hour = tonumber(hour),
-            min = tonumber(min),
-            sec = tonumber(sec),
+            year = tonumber(year) --[[@as integer]],
+            month = tonumber(month) --[[@as integer]],
+            day = tonumber(day) --[[@as integer]],
+            hour = tonumber(hour) --[[@as integer]],
+            min = tonumber(min) --[[@as integer]],
+            sec = tonumber(sec) --[[@as integer]],
             isdst = false,
         })
         if s:match('Z$') or s:match('[+-]%d%d:?%d%d$') then
