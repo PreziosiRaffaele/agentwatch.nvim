@@ -80,7 +80,7 @@ function M.add(repo_root, branch, path)
     return nil
 end
 
-function M.removable_path(folder)
+local function registered_worktree_path(folder)
     local path = normalize_path(folder)
     if not path then
         return nil, 'Selected agent has no worktree path'
@@ -88,25 +88,15 @@ function M.removable_path(folder)
 
     local stat = vim.uv.fs_stat(path)
     if not stat then
-        return nil, 'Worktree path does not exist: ' .. path
+        return nil, 'Path does not exist: ' .. path
     end
     if stat.type ~= 'directory' then
-        return nil, 'Worktree path is not a directory: ' .. path
-    end
-
-    local toplevel_output, toplevel_err = git_output(path, { 'rev-parse', '--show-toplevel' })
-    if toplevel_err or not toplevel_output then
-        return nil, 'Path is not inside a Git worktree: ' .. (toplevel_err or 'unknown error')
-    end
-
-    local toplevel = normalize_path(vim.split(toplevel_output, '\n', { plain = true })[1] or '')
-    if toplevel ~= path then
-        return nil, 'Path is not a registered Git worktree: ' .. path
+        return nil, 'Path is not a directory: ' .. path
     end
 
     local list_output, list_err = git_output(path, { 'worktree', 'list', '--porcelain' })
     if list_err or not list_output then
-        return nil, 'Could not inspect Git worktrees: ' .. (list_err or 'unknown error')
+        return nil, 'git worktree list failed: ' .. (list_err or 'unknown error')
     end
 
     local main_worktree = nil
@@ -125,6 +115,19 @@ function M.removable_path(folder)
 
     if not registered then
         return nil, 'Path is not a registered Git worktree: ' .. path
+    end
+
+    return path, nil, main_worktree
+end
+
+function M.attachable_path(folder)
+    return registered_worktree_path(folder)
+end
+
+function M.removable_path(folder)
+    local path, err, main_worktree = registered_worktree_path(folder)
+    if err then
+        return nil, err
     end
 
     if path == main_worktree then

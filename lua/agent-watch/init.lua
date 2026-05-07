@@ -324,6 +324,44 @@ function M.launch_worktree(args)
     do_launch(given_title, given_branch, given_agent)
 end
 
+function M.attach_worktree(args)
+    local worktree = require('agent-watch.worktree')
+    args = args or {}
+
+    local given_title = args[1]
+    local given_path = args[2]
+    local given_agent = args[3]
+
+    if not given_title or vim.trim(given_title) == '' or not given_path or vim.trim(given_path) == '' or #args > 3 then
+        notify('Usage: AgentWatchAttachWorktree <title> <path> [agent]', vim.log.levels.ERROR)
+        return
+    end
+
+    given_title = vim.trim(given_title)
+    given_agent = given_agent and vim.trim(given_agent) or nil
+    if given_agent == '' then
+        given_agent = nil
+    end
+
+    local agent = first_nonempty(given_agent, state.opts.default_agent, config.defaults.default_agent)
+    local configured_agent_set = config.available_agent_set(state.opts)
+    if not configured_agent_set[agent] then
+        notify(
+            'Unknown agent "' .. agent .. '". Use one of: ' .. table.concat(state.opts.available_agents, ', '),
+            vim.log.levels.ERROR
+        )
+        return
+    end
+
+    local path, err = worktree.attachable_path(given_path)
+    if err then
+        notify(err, vim.log.levels.ERROR)
+        return
+    end
+
+    M.launch({ given_title, agent }, path)
+end
+
 function M.prompt_launch_worktree()
     vim.ui.input({ prompt = 'Agent title: ' }, function(title)
         title = vim.trim(title or '')
@@ -386,6 +424,19 @@ local function complete_worktree_agent(arg_lead, cmd_line)
     return {}
 end
 
+local function complete_attach_worktree(arg_lead, cmd_line)
+    local args = vim.split(cmd_line, '%s+', { trimempty = true })
+    if #args == 3 then
+        return vim.fn.getcompletion(arg_lead, 'dir')
+    end
+    if #args == 4 then
+        return vim.tbl_filter(function(agent)
+            return vim.startswith(agent, arg_lead)
+        end, state.opts.available_agents)
+    end
+    return {}
+end
+
 local function setup_keymaps()
     if state.toggle_latest_keymap then
         pcall(vim.keymap.del, 'n', state.toggle_latest_keymap)
@@ -423,26 +474,27 @@ function M.setup(opts)
         end,
     })
 
-    pcall(vim.api.nvim_del_user_command, state.opts.commands.watch)
-    pcall(vim.api.nvim_del_user_command, state.opts.commands.toggle)
-    pcall(vim.api.nvim_del_user_command, state.opts.commands.toggle_latest)
-    pcall(vim.api.nvim_del_user_command, state.opts.commands.launch)
-    pcall(vim.api.nvim_del_user_command, state.opts.commands.rename)
-    pcall(vim.api.nvim_del_user_command, state.opts.commands.launch_worktree)
+    pcall(vim.api.nvim_del_user_command, 'AgentWatch')
+    pcall(vim.api.nvim_del_user_command, 'AgentWatchToggle')
+    pcall(vim.api.nvim_del_user_command, 'AgentWatchToggleLatest')
+    pcall(vim.api.nvim_del_user_command, 'AgentWatchLaunch')
+    pcall(vim.api.nvim_del_user_command, 'AgentWatchRename')
+    pcall(vim.api.nvim_del_user_command, 'AgentWatchLaunchWorktree')
+    pcall(vim.api.nvim_del_user_command, 'AgentWatchAttachWorktree')
 
-    vim.api.nvim_create_user_command(state.opts.commands.watch, M.refresh, {
+    vim.api.nvim_create_user_command('AgentWatch', M.refresh, {
         desc = 'Open Agent Watch',
     })
 
-    vim.api.nvim_create_user_command(state.opts.commands.toggle, M.toggle, {
+    vim.api.nvim_create_user_command('AgentWatchToggle', M.toggle, {
         desc = 'Toggle Agent Watch',
     })
 
-    vim.api.nvim_create_user_command(state.opts.commands.toggle_latest, M.toggle_latest, {
+    vim.api.nvim_create_user_command('AgentWatchToggleLatest', M.toggle_latest, {
         desc = 'Toggle the latest Agent Watch terminal',
     })
 
-    vim.api.nvim_create_user_command(state.opts.commands.launch, function(command)
+    vim.api.nvim_create_user_command('AgentWatchLaunch', function(command)
         M.launch(command.fargs)
     end, {
         nargs = '*',
@@ -450,19 +502,27 @@ function M.setup(opts)
         desc = 'Launch an agent tracked by Agent Watch',
     })
 
-    vim.api.nvim_create_user_command(state.opts.commands.rename, function(command)
+    vim.api.nvim_create_user_command('AgentWatchRename', function(command)
         M.rename_agent(command.fargs)
     end, {
         nargs = '*',
         desc = 'Rename the selected Agent Watch row',
     })
 
-    vim.api.nvim_create_user_command(state.opts.commands.launch_worktree, function(command)
+    vim.api.nvim_create_user_command('AgentWatchLaunchWorktree', function(command)
         M.launch_worktree(command.fargs)
     end, {
         nargs = '+',
         complete = complete_worktree_agent,
         desc = 'Launch an agent in a new Git worktree',
+    })
+
+    vim.api.nvim_create_user_command('AgentWatchAttachWorktree', function(command)
+        M.attach_worktree(command.fargs)
+    end, {
+        nargs = '+',
+        complete = complete_attach_worktree,
+        desc = 'Launch an agent in an existing Git worktree',
     })
 end
 

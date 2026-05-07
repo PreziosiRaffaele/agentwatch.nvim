@@ -48,6 +48,7 @@ The plugin calls `vim.fn.serverstart()` to ensure a server address exists and pa
 | `AgentWatchToggleLatest` | Toggle the latest agent terminal. Closes it when visible, opens it when hidden. |
 | `AgentWatchLaunch <title> [agent]` | Open a terminal and start a tracked agent. |
 | `AgentWatchLaunchWorktree <title> <branch> [agent]` | Create a Git worktree, then open a terminal and start a tracked agent in it. |
+| `AgentWatchAttachWorktree <title> <path> [agent]` | Open a terminal and start a tracked agent inside an existing Git worktree at `<path>`. |
 | `AgentWatchRename [title]` | Rename the selected agent. Prompts if no title is given. |
 
 ---
@@ -111,14 +112,6 @@ require('agent-watch').setup({
         float_width  = 0.9,          -- float width as editor fraction
         float_height = 0.85,         -- float height as editor fraction
     },
-    commands = {
-        watch  = 'AgentWatch',
-        toggle = 'AgentWatchToggle',
-        toggle_latest = 'AgentWatchToggleLatest',
-        launch = 'AgentWatchLaunch',
-        launch_worktree = 'AgentWatchLaunchWorktree',
-        rename = 'AgentWatchRename',
-    },
     keymaps = {
         toggle_latest = '<C-\\><C-\\>',
     },
@@ -157,6 +150,17 @@ AgentWatchLaunchWorktree <title> <branch> [agent]
   → branch_slug is the trimmed branch with non-[A-Za-z0-9._] runs replaced by -
   → creates a Git worktree at ../<branch_slug>
   → creates a hidden terminal buffer with cwd set to the worktree path
+  → opens it with the configured terminal layout
+  → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
+
+AgentWatchAttachWorktree <title> <path> [agent]
+  → expands ~ and resolves <path> to an absolute, real path
+  → verifies the path exists and is a directory
+  → runs: git -C <path> worktree list --porcelain
+  → confirms <path> matches a registered worktree entry (linked or main)
+  → uses the provided agent, or default_agent when omitted
+  → ensures Neovim server is running
+  → creates a hidden terminal buffer with cwd set to <path>
   → opens it with the configured terminal layout
   → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
 
