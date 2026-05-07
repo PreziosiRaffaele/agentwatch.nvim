@@ -19,7 +19,7 @@ local help_lines = {
     'a     Launch agent',
     'w     Launch worktree agent',
     'r     Rename selected agent',
-    't     Open selected worktree',
+    'o     Open selected worktree',
     'dd    Delete selected terminal buffer',
     'dw    Delete selected worktree and terminal buffer',
     'q     Close Agent Watch',
@@ -197,7 +197,7 @@ local function create_buffer()
     )
     vim.keymap.set(
         'n',
-        't',
+        'o',
         state.actions.open_worktree,
         { buffer = state.buf, silent = true, desc = 'Open selected worktree' }
     )

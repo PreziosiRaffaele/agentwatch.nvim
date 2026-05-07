@@ -63,7 +63,7 @@ Inside the `AgentWatch` buffer:
 | `a` | Prompt for title and agent type, then launch. |
 | `w` | Prompt for title and branch, then launch the default agent in a new Git worktree. |
 | `r` | Rename the selected agent. |
-| `t` | Open the selected agent's worktree with the configured `worktree_opener`. |
+| `o` | Open the selected agent's worktree with the configured `worktree_opener`. |
 | `dd` | Force-delete the selected agent terminal buffer. |
 | `dw` | Delete the selected agent's Git worktree after confirmation. Does not delete the branch. |
 | `q` | Close the watch window and stop the watch process. |
