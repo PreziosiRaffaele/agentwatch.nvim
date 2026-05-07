@@ -96,7 +96,7 @@ local function registered_worktree_path(folder)
 
     local list_output, list_err = git_output(path, { 'worktree', 'list', '--porcelain' })
     if list_err or not list_output then
-        return nil, 'git worktree list failed: ' .. (list_err or 'unknown error')
+        return nil, 'Path is not a registered Git worktree: ' .. path
     end
 
     local main_worktree = nil
