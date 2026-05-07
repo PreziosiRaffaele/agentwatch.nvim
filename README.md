@@ -42,7 +42,7 @@ bun --version
 After Bun is installed, install the `agent-watch` CLI:
 
 ```sh
-bun install -g agent-watch
+bun install -g @preziosiraffaele/agent-watch
 ```
 
 ### Neovim built-in package manager
