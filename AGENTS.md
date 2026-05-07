@@ -55,6 +55,17 @@ When creating lua modules:
 - Before adding a new module, define its owner responsibility in one sentence. If that sentence has multiple unrelated responsibilities, split the module.
 - Add comments only for non-obvious control flow or integration constraints.
 
+## Feature Workflow
+
+For every new feature, follow this sequence:
+
+1. **Draft the feature spec** — create `docs/<feature-name>.md` in the feature branch.
+   Describe the goal, configuration, behavior, and what changes `docs/spec.md` will
+   need. Do not modify `docs/spec.md` yet.
+2. **Develop and test** — implement the feature and verify it against the feature spec.
+3. **Update the main spec** — apply the changes described in the feature spec to
+   `docs/spec.md`, then delete the feature spec file.
+
 ## Verification
 
 After any edit to `*.lua` files, run `make quality` before finishing.

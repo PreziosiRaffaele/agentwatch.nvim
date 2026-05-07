@@ -353,17 +353,22 @@ function M.open_worktree()
         return
     end
 
-    if not vim.env.TMUX or vim.env.TMUX == '' then
-        notify('Not in a tmux session ($TMUX is unset)', vim.log.levels.ERROR)
-        return
-    end
+    if state.opts.worktree_opener == 'tmux' then
+        if not vim.env.TMUX or vim.env.TMUX == '' then
+            notify('Not in a tmux session ($TMUX is unset)', vim.log.levels.ERROR)
+            return
+        end
 
-    local title = rows.field(row, { 'title', 'name', 'summary' })
-    if title == '' then
-        title = vim.fn.fnamemodify(folder, ':t')
-    end
+        local title = rows.field(row, { 'title', 'name', 'summary' })
+        if title == '' then
+            title = vim.fn.fnamemodify(folder, ':t')
+        end
 
-    vim.fn.jobstart({ 'tmux', 'new-window', '-n', title, '-c', folder }, { detach = true })
+        vim.fn.jobstart({ 'tmux', 'new-window', '-n', title, '-c', folder }, { detach = true })
+    else
+        vim.cmd('tabnew')
+        vim.cmd('tcd ' .. vim.fn.fnameescape(folder))
+    end
 end
 
 local function complete_agent(arg_lead, cmd_line)
