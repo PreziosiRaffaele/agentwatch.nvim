@@ -1,6 +1,11 @@
 {
-  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
-  "Lua.runtime.version": "LuaJIT",
-  "Lua.workspace.checkThirdParty": false,
-  "Lua.diagnostics.globals": ["vim"]
+  "runtime": { "version": "LuaJIT" },
+  "workspace": { "checkThirdParty": false },
+  "diagnostics": {
+    "globals": ["vim"],
+    "severity": {
+      "need-check-nil": "Error",
+      "param-type-mismatch": "Error"
+    }
+  }
 }
