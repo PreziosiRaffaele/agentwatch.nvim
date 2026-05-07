@@ -63,7 +63,7 @@ Inside the `AgentWatch` buffer:
 | `a` | Prompt for title and agent type, then launch. |
 | `w` | Prompt for title and branch, then launch the default agent in a new Git worktree. |
 | `r` | Rename the selected agent. |
-| `t` | Open the selected agent's worktree with the configured opener. The current opener is tmux. |
+| `o` | Open the selected agent's worktree with the configured `worktree_opener`. |
 | `dd` | Force-delete the selected agent terminal buffer. |
 | `dw` | Delete the selected agent's Git worktree after confirmation. Does not delete the branch. |
 | `q` | Close the watch window and stop the watch process. |
@@ -112,6 +112,7 @@ require('agent-watch').setup({
         float_width  = 0.9,          -- float width as editor fraction
         float_height = 0.85,         -- float height as editor fraction
     },
+    worktree_opener = 'nvim',         -- 'nvim' (new tab + tcd) or 'tmux' (new window)
     keymaps = {
         toggle_latest = '<C-\\><C-\\>',
     },
@@ -121,6 +122,8 @@ require('agent-watch').setup({
 `available_agents` must be a non-empty subset of `{ 'codex', 'agent', 'claude' }`. `default_agent` must be in `available_agents`. Both are validated at setup time; misconfigurations surface an error and fall back to defaults.
 
 `terminal.layout` must be one of `float`, `side`, or `tab`. Invalid terminal layout settings surface an error and fall back to defaults.
+
+`worktree_opener` must be one of `nvim` or `tmux`. Invalid values surface an error and fall back to `nvim`.
 
 ---
 
@@ -178,8 +181,8 @@ AgentWatchRename <id> <title>
   → PATCH <daemon_url>/launches/<id>  body: { "title": "<title>" }
   → refreshes the watch buffer on success
 
-Open selected worktree
+Open selected worktree (t)
   → selected row folder from watch buffer
-  → requires $TMUX while tmux is the opener
-  → starts detached job: tmux new-window -n <title> -c <folder>
+  → nvim opener (default): tabnew, then tcd <folder>
+  → tmux opener: requires $TMUX; starts detached job: tmux new-window -n <title> -c <folder>
 ```

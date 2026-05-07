@@ -18,6 +18,7 @@ M.defaults = {
         float_height = 0.85,
     },
     worktree_dir = '.worktrees',
+    worktree_opener = 'nvim',
     keymaps = {
         toggle_latest = '<C-\\><C-\\>',
     },
@@ -28,6 +29,11 @@ local supported_agent_set = {}
 for _, agent in ipairs(supported_agents) do
     supported_agent_set[agent] = true
 end
+
+local supported_worktree_opener_set = {
+    nvim = true,
+    tmux = true,
+}
 
 local supported_terminal_layout_set = {
     float = true,
@@ -96,6 +102,13 @@ local function normalize_fraction(value, default)
     return value
 end
 
+local function validate_worktree_opener(opts)
+    if not supported_worktree_opener_set[opts.worktree_opener] then
+        notify('Invalid worktree_opener. Use one of: nvim, tmux. Falling back to "nvim".', vim.log.levels.ERROR)
+        opts.worktree_opener = 'nvim'
+    end
+end
+
 local function validate_terminal_config(opts)
     local terminal = opts.terminal
     if type(terminal) ~= 'table' then
@@ -130,6 +143,7 @@ function M.build(opts)
     opts.watch_interval = tonumber(opts.watch_interval) or M.defaults.watch_interval
     validate_agent_config(opts)
     validate_terminal_config(opts)
+    validate_worktree_opener(opts)
     return opts
 end
 
