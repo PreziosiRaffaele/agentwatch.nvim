@@ -27,7 +27,7 @@ The plugin communicates with `agent-watchd` using two channels:
 **Launch terminal**
 
 - Each agent is launched in a hidden terminal buffer opened with the configured terminal layout.
-- Supported terminal layouts are `float`, `side`, and `tab`. The default is `float`.
+- Supported terminal layouts are `float`, `side`, and `tab`. The default is `side`.
 - `aw <agent>` is started directly as the terminal job, passing `--nvim-server` and `--nvim-bufnr` so `agent-watchd` can link the launch back to this Neovim session.
 - The latest-agent toggle prefers the last terminal launched or opened in the current Neovim session. If that buffer is missing or invalid, it fetches the current daemon rows for this Neovim server and opens the valid row with the highest launch ID.
 
@@ -103,10 +103,10 @@ require('agent-watch').setup({
     height         = 8,             -- watch window height in lines
     fixed_height   = true,          -- winfixheight on the watch window
     watch_interval = 1000,          -- daemon polling interval in ms
-    default_agent  = 'codex',       -- pre-selected agent in the launch prompt
+    default_agent  = 'claude',      -- pre-selected agent in the launch prompt
     available_agents = { 'codex', 'agent', 'claude' }, -- agents shown in the picker
     terminal = {
-        layout       = 'float',      -- 'float', 'side', or 'tab'
+        layout       = 'side',       -- 'float', 'side', or 'tab'
         side         = 'right',      -- side split direction: 'right' or 'left'
         width        = 80,           -- side split width in columns
         float_width  = 0.9,          -- float width as editor fraction
