@@ -22,6 +22,8 @@ The plugin communicates with `agent-watchd` using two channels:
 - A bottom scratch buffer (`botright split`) showing agents attached to the current Neovim server.
 - Filtered by `nvim_server` by calling `GET /agents?nvim_server=<current-server>`. The plugin uses the existing `vim.v.servername` when Neovim already has a server address; otherwise it starts one with `vim.fn.serverstart()` and uses the returned address. The plugin also keeps a local exact `row.nvim_server == current_server` check after parsing the response as a compatibility guard.
 - Rows with an invalid terminal buffer are excluded from the view.
+- Visible columns are `TITLE`, `STATE`, `AGENT`, `BRANCH`, and `UPDATED`.
+- The `STATE` column is highlighted with plugin-owned highlight groups linked to standard Neovim groups, so colors come from the user's active colorscheme.
 - Updated by polling the filtered daemon endpoint at `watch_interval` ms while the window is visible. Polling stops when the window closes.
 
 **Launch terminal**
@@ -124,6 +126,27 @@ require('agent-watch').setup({
 `terminal.layout` must be one of `float`, `side`, or `tab`. Invalid terminal layout settings surface an error and fall back to defaults.
 
 `worktree_opener` must be one of `nvim` or `tmux`. Invalid values surface an error and fall back to `nvim`.
+
+### Highlight Groups
+
+State colors in the watch buffer use these highlight groups. Defaults are set
+with `default = true`, so users and colorschemes can override them.
+
+| Group | Default link | Used for |
+| --- | --- | --- |
+| `AgentWatchStateRunning` | `DiagnosticInfo` | session_started, working, running, active, busy |
+| `AgentWatchStateWaiting` | `DiagnosticWarn` | running_tool, running_shell, needs_approval, waiting, queued, pending, blocked |
+| `AgentWatchStateDone` | `DiagnosticOk` | done, complete, completed, success, succeeded |
+| `AgentWatchStateError` | `DiagnosticError` | failed, error, failure, stopped, cancelled, canceled |
+| `AgentWatchStateIdle` | `Comment` | idle, ready, stale, exited |
+| `AgentWatchStateChanged` | `DiagnosticHint` | edited_file |
+| `AgentWatchStateUnknown` | `Comment` | any other non-empty state |
+
+Users can customize a group after setup, for example:
+
+```lua
+vim.api.nvim_set_hl(0, 'AgentWatchStateRunning', { link = 'String' })
+```
 
 ---
 

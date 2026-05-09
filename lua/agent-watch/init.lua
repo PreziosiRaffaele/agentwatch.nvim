@@ -1,5 +1,6 @@
 local config = require('agent-watch.config')
 local daemon = require('agent-watch.daemon')
+local highlights = require('agent-watch.highlights')
 local notify = require('agent-watch.notify').notify
 local rows = require('agent-watch.rows')
 local server = require('agent-watch.nvim_server')
@@ -462,6 +463,7 @@ end
 
 function M.setup(opts)
     state.opts = config.build(opts)
+    highlights.setup()
     terminal.setup({ toggle_latest = M.toggle_latest })
     setup_keymaps()
     watcher.setup(state.opts)
