@@ -95,8 +95,8 @@ COMMANDS                                              *agent-watch-commands*
 :AgentWatch
 
     Open or refresh the watch buffer. The buffer lists all agents
-    attached to the current Neovim server with their ID, state, agent
-    type, title, branch, and a relative last-updated timestamp.
+    attached to the current Neovim server with their title, state, agent
+    type, relative last-updated timestamp, and branch.
 
                                                       *:AgentWatchToggle*
 :AgentWatchToggle
@@ -161,8 +161,6 @@ These mappings are active only inside the |:AgentWatch| buffer.
 Key    Action ~
 <CR>   Jump to the selected agent's terminal buffer.
 a      Prompt for title and agent, then launch a new tracked agent.
-w      Prompt for title and branch, then launch the default agent in a
-       new Git worktree.
 r      Rename the selected agent (prompts for title).
 o      Open the selected agent's worktree (Neovim tab or tmux window,
        depending on |agent-watch-config-worktree-opener|).
