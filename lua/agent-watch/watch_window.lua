@@ -1,4 +1,8 @@
+local highlights = require('agent-watch.highlights')
+
 local M = {}
+
+local namespace = vim.api.nvim_create_namespace('agent-watch-state')
 
 local state = {
     opts = nil,
@@ -243,6 +247,20 @@ function M.close()
     end
 end
 
+local function apply_state_ranges(buf, ranges)
+    vim.api.nvim_buf_clear_namespace(buf, namespace, 0, -1)
+
+    for _, range in ipairs(ranges or {}) do
+        local group = highlights.state_group(range.state)
+        if group then
+            vim.api.nvim_buf_set_extmark(buf, namespace, range.line - 1, range.col, {
+                end_col = range.end_col,
+                hl_group = group,
+            })
+        end
+    end
+end
+
 function M.set_lines(lines, rows_by_line, opts)
     opts = opts or {}
 
@@ -273,6 +291,7 @@ function M.set_lines(lines, rows_by_line, opts)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
     vim.bo[buf].modifiable = false
     vim.bo[buf].readonly = true
+    apply_state_ranges(buf, opts.state_ranges)
 
     if valid_win(win) then
         if not rows_by_line[cursor_line] then

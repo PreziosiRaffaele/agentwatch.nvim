@@ -1,5 +1,13 @@
 local M = {}
 
+local title_width = 20
+local state_width = 15
+local agent_width = 6
+local branch_width = 40
+local updated_width = 10
+local column_gap = 2
+local column_separator = string.rep(' ', column_gap)
+
 local function relative_time(ts)
     if not ts or ts == '' or ts == vim.NIL then
         return ''
@@ -114,39 +122,49 @@ end
 function M.render(rows)
     local lines = {}
     local rows_by_line = {}
+    local state_ranges = {}
 
     if #rows == 0 then
         table.insert(lines, 'No active agents for this Neovim server.')
-        return lines, rows_by_line
+        return lines, rows_by_line, state_ranges
     end
 
     local header = table.concat({
-        display_width('ID', 5),
-        display_width('STATE', 16),
-        display_width('AGENT', 10),
-        display_width('TITLE', 30),
-        display_width('BRANCH', 40),
-        display_width('UPDATED', 10),
-    }, '  ')
+        display_width('TITLE', title_width),
+        display_width('STATE', state_width),
+        display_width('AGENT', agent_width),
+        display_width('BRANCH', branch_width),
+        display_width('UPDATED', updated_width),
+    }, column_separator)
 
     table.insert(lines, header)
-    table.insert(lines, string.rep('-', vim.fn.strdisplaywidth(header)))
 
     for _, row in ipairs(rows) do
+        local state_value = M.field(row, { 'state', 'status' })
+        local title_cell = display_width(M.field(row, { 'title', 'name', 'summary' }), title_width)
+        local state_cell = display_width(state_value, state_width)
         local line = table.concat({
-            display_width(M.id(row) or '', 5),
-            display_width(M.field(row, { 'state', 'status' }), 16),
-            display_width(M.field(row, { 'agent', 'agent_type', 'type' }), 10),
-            display_width(M.field(row, { 'title', 'name', 'summary' }), 30),
-            display_width(M.field(row, { 'branch', 'git_branch' }), 40),
-            display_width(relative_time(M.field(row, { 'updated', 'updated_at', 'updatedAt' })), 10),
-        }, '  ')
+            title_cell,
+            state_cell,
+            display_width(M.field(row, { 'agent', 'agent_type', 'type' }), agent_width),
+            display_width(M.field(row, { 'branch', 'git_branch' }), branch_width),
+            display_width(relative_time(M.field(row, { 'updated', 'updated_at', 'updatedAt' })), updated_width),
+        }, column_separator)
 
         table.insert(lines, line)
         rows_by_line[#lines] = row
+        if state_value ~= '' then
+            local state_col = #title_cell + #column_separator
+            table.insert(state_ranges, {
+                line = #lines,
+                col = state_col,
+                end_col = state_col + #state_cell,
+                state = state_value,
+            })
+        end
     end
 
-    return lines, rows_by_line
+    return lines, rows_by_line, state_ranges
 end
 
 return M

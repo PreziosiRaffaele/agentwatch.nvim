@@ -57,8 +57,8 @@ local function render_list(open, loading)
             return
         end
 
-        local lines, rows_by_line = rows.render(rows.filter(agent_rows, state.server))
-        window.set_lines(lines, rows_by_line, { open = open })
+        local lines, rows_by_line, state_ranges = rows.render(rows.filter(agent_rows, state.server))
+        window.set_lines(lines, rows_by_line, { open = open, state_ranges = state_ranges })
     end)
 end
 
