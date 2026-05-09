@@ -70,6 +70,13 @@ local function display_width(value, width)
     return value .. string.rep(' ', width - visible)
 end
 
+local function or_dash(value)
+    if value == nil or value == '' then
+        return '—'
+    end
+    return value
+end
+
 function M.field(row, names)
     for _, name in ipairs(names) do
         local value = row[name]
@@ -131,14 +138,17 @@ function M.render(rows)
 
     for _, row in ipairs(rows) do
         local state_value = M.field(row, { 'state', 'status' })
-        local title_cell = display_width(M.field(row, { 'title', 'name', 'summary' }), title_width)
-        local state_cell = display_width(state_value, state_width)
+        local title_cell = display_width(or_dash(M.field(row, { 'title', 'name', 'summary' })), title_width)
+        local state_cell = display_width(or_dash(state_value), state_width)
         local line = table.concat({
             title_cell,
             state_cell,
-            display_width(M.field(row, { 'agent', 'agent_type', 'type' }), agent_width),
-            display_width(relative_time(M.field(row, { 'updated', 'updated_at', 'updatedAt' })), updated_width),
-            display_width(M.field(row, { 'branch', 'git_branch' }), branch_width),
+            display_width(or_dash(M.field(row, { 'agent', 'agent_type', 'type' })), agent_width),
+            display_width(
+                or_dash(relative_time(M.field(row, { 'updated', 'updated_at', 'updatedAt' }))),
+                updated_width
+            ),
+            display_width(or_dash(M.field(row, { 'branch', 'git_branch' })), branch_width),
         }, column_separator)
 
         table.insert(lines, line)
