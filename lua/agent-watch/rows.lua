@@ -144,7 +144,10 @@ function M.render(rows)
             title_cell,
             state_cell,
             display_width(or_dash(M.field(row, { 'agent', 'agent_type', 'type' })), agent_width),
-            display_width(or_dash(relative_time(M.field(row, { 'updated', 'updated_at', 'updatedAt' }))), updated_width),
+            display_width(
+                or_dash(relative_time(M.field(row, { 'updated', 'updated_at', 'updatedAt' }))),
+                updated_width
+            ),
             display_width(or_dash(M.field(row, { 'branch', 'git_branch' })), branch_width),
         }, column_separator)
 
