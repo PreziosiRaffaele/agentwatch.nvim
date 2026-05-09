@@ -12,6 +12,7 @@ local M = {}
 local state = {
     opts = config.build(),
     latest = nil,
+    toggle_keymap = nil,
     toggle_latest_keymap = nil,
 }
 
@@ -443,21 +444,33 @@ local function complete_attach_worktree(arg_lead, cmd_line)
 end
 
 local function setup_keymaps()
+    if state.toggle_keymap then
+        pcall(vim.keymap.del, 'n', state.toggle_keymap)
+        state.toggle_keymap = nil
+    end
+
     if state.toggle_latest_keymap then
         pcall(vim.keymap.del, 'n', state.toggle_latest_keymap)
         state.toggle_latest_keymap = nil
     end
 
-    local keymap = state.opts.keymaps and state.opts.keymaps.toggle_latest
-    if type(keymap) ~= 'string' or keymap == '' then
-        return
+    local toggle_keymap = state.opts.keymaps and state.opts.keymaps.toggle
+    if type(toggle_keymap) == 'string' and toggle_keymap ~= '' then
+        vim.keymap.set('n', toggle_keymap, M.toggle, {
+            silent = true,
+            desc = 'Toggle Agent Watch',
+        })
+        state.toggle_keymap = toggle_keymap
     end
 
-    vim.keymap.set('n', keymap, M.toggle_latest, {
-        silent = true,
-        desc = 'Toggle latest agent terminal',
-    })
-    state.toggle_latest_keymap = keymap
+    local toggle_latest_keymap = state.opts.keymaps and state.opts.keymaps.toggle_latest
+    if type(toggle_latest_keymap) == 'string' and toggle_latest_keymap ~= '' then
+        vim.keymap.set('n', toggle_latest_keymap, M.toggle_latest, {
+            silent = true,
+            desc = 'Toggle latest agent terminal',
+        })
+        state.toggle_latest_keymap = toggle_latest_keymap
+    end
 end
 
 function M.setup(opts)

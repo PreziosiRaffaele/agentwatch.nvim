@@ -136,6 +136,7 @@ Inside the `AgentWatch` buffer:
 
 Global normal-mode mappings:
 
+- `<leader>aw` toggles the Agent Watch window.
 - `<C-\><C-\>` toggles the latest agent terminal.
 
 Inside agent terminal buffers, in terminal and normal mode:
@@ -154,6 +155,7 @@ require('agent-watch').setup({
     fixed_height = true,
     watch_interval = 1000,
     keymaps = {
+        toggle = '<leader>aw',
         toggle_latest = '<C-\\><C-\\>',
     },
     terminal = {
