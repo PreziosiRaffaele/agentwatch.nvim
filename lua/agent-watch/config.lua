@@ -20,6 +20,7 @@ M.defaults = {
     worktree_dir = '.worktrees',
     worktree_opener = 'nvim',
     keymaps = {
+        toggle = '<leader>aw',
         toggle_latest = '<C-\\><C-\\>',
     },
 }

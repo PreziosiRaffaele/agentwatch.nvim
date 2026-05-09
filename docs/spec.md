@@ -84,6 +84,7 @@ Global normal-mode mappings:
 
 | Key | Action |
 | --- | --- |
+| `<leader>aw` | Toggle the Agent Watch window. |
 | `<C-\><C-\>` | Toggle the latest agent terminal. |
 
 Inside agent terminal buffers, in terminal and normal mode:
@@ -114,6 +115,7 @@ require('agent-watch').setup({
     },
     worktree_opener = 'nvim',         -- 'nvim' (new tab + tcd) or 'tmux' (new window)
     keymaps = {
+        toggle = '<leader>aw',
         toggle_latest = '<C-\\><C-\\>',
     },
 })
