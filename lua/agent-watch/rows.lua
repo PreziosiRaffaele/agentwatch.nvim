@@ -6,7 +6,7 @@ local agent_width = 6
 local branch_width = 40
 local updated_width = 10
 local column_gap = 2
-local state_col = title_width + column_gap
+local column_separator = string.rep(' ', column_gap)
 
 local function relative_time(ts)
     if not ts or ts == '' or ts == vim.NIL then
@@ -135,24 +135,26 @@ function M.render(rows)
         display_width('AGENT', agent_width),
         display_width('BRANCH', branch_width),
         display_width('UPDATED', updated_width),
-    }, '  ')
+    }, column_separator)
 
     table.insert(lines, header)
 
     for _, row in ipairs(rows) do
         local state_value = M.field(row, { 'state', 'status' })
+        local title_cell = display_width(M.field(row, { 'title', 'name', 'summary' }), title_width)
         local state_cell = display_width(state_value, state_width)
         local line = table.concat({
-            display_width(M.field(row, { 'title', 'name', 'summary' }), title_width),
+            title_cell,
             state_cell,
             display_width(M.field(row, { 'agent', 'agent_type', 'type' }), agent_width),
             display_width(M.field(row, { 'branch', 'git_branch' }), branch_width),
             display_width(relative_time(M.field(row, { 'updated', 'updated_at', 'updatedAt' })), updated_width),
-        }, '  ')
+        }, column_separator)
 
         table.insert(lines, line)
         rows_by_line[#lines] = row
         if state_value ~= '' then
+            local state_col = #title_cell + #column_separator
             table.insert(state_ranges, {
                 line = #lines,
                 col = state_col,
