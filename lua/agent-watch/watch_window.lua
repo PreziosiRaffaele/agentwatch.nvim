@@ -21,7 +21,6 @@ local help_lines = {
     '',
     '<CR>  Open selected agent terminal',
     'a     Launch agent',
-    'w     Launch worktree agent',
     'r     Rename selected agent',
     'o     Open selected worktree',
     'dd    Delete selected terminal buffer',
@@ -180,12 +179,6 @@ local function create_buffer()
         { buffer = state.buf, silent = true, desc = 'Jump to agent terminal' }
     )
     vim.keymap.set('n', 'a', state.actions.launch, { buffer = state.buf, silent = true, desc = 'Add agent' })
-    vim.keymap.set(
-        'n',
-        'w',
-        state.actions.launch_worktree,
-        { buffer = state.buf, silent = true, desc = 'Launch worktree agent' }
-    )
     vim.keymap.set('n', 'r', state.actions.rename, { buffer = state.buf, silent = true, desc = 'Rename agent' })
     vim.keymap.set(
         'n',

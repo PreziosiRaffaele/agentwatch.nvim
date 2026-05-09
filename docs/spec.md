@@ -63,7 +63,6 @@ Inside the `AgentWatch` buffer:
 | --- | --- |
 | `<CR>` | Open the selected agent terminal with the configured terminal layout. |
 | `a` | Prompt for title and agent type, then launch. |
-| `w` | Prompt for title and branch, then launch the default agent in a new Git worktree. |
 | `r` | Rename the selected agent. |
 | `o` | Open the selected agent's worktree with the configured `worktree_opener`. |
 | `dd` | Force-delete the selected agent terminal buffer. |
