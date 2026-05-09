@@ -95,8 +95,8 @@ COMMANDS                                              *agent-watch-commands*
 :AgentWatch
 
     Open or refresh the watch buffer. The buffer lists all agents
-    attached to the current Neovim server with their ID, state, agent
-    type, title, branch, and a relative last-updated timestamp.
+    attached to the current Neovim server with their title, state, agent
+    type, relative last-updated timestamp, and branch.
 
                                                       *:AgentWatchToggle*
 :AgentWatchToggle
