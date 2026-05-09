@@ -4,7 +4,7 @@ local title_width = 20
 local state_width = 15
 local agent_width = 6
 local branch_width = 40
-local updated_width = 10
+local updated_width = 9
 local column_gap = 2
 local column_separator = string.rep(' ', column_gap)
 
@@ -48,24 +48,14 @@ local function relative_time(ts)
     local diff = os.difftime(os.time(), epoch)
     if diff < 60 then
         return 'just now'
-    elseif diff < 120 then
-        return '< 2m ago'
-    elseif diff < 300 then
-        return '< 5m ago'
-    elseif diff < 600 then
-        return '< 10m ago'
-    elseif diff < 900 then
-        return '< 15m ago'
-    elseif diff < 1800 then
-        return '< 30m ago'
-    elseif diff < 2700 then
-        return '< 45m ago'
     elseif diff < 3600 then
-        return '< 1h ago'
-    elseif diff < 5400 then
-        return '< 1.5h ago'
+        return math.floor(diff / 60) .. 'm ago'
     elseif diff < 86400 then
-        return math.floor(diff / 3600) .. 'h ago'
+        local half_hours = math.floor(diff / 1800)
+        if half_hours % 2 == 0 then
+            return math.floor(half_hours / 2) .. 'h ago'
+        end
+        return math.floor(half_hours / 2) .. '.5h ago'
     else
         return math.floor(diff / 86400) .. 'd ago'
     end
@@ -133,8 +123,8 @@ function M.render(rows)
         display_width('TITLE', title_width),
         display_width('STATE', state_width),
         display_width('AGENT', agent_width),
-        display_width('BRANCH', branch_width),
         display_width('UPDATED', updated_width),
+        display_width('BRANCH', branch_width),
     }, column_separator)
 
     table.insert(lines, header)
@@ -147,8 +137,8 @@ function M.render(rows)
             title_cell,
             state_cell,
             display_width(M.field(row, { 'agent', 'agent_type', 'type' }), agent_width),
-            display_width(M.field(row, { 'branch', 'git_branch' }), branch_width),
             display_width(relative_time(M.field(row, { 'updated', 'updated_at', 'updatedAt' })), updated_width),
+            display_width(M.field(row, { 'branch', 'git_branch' }), branch_width),
         }, column_separator)
 
         table.insert(lines, line)
