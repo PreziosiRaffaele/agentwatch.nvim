@@ -33,6 +33,13 @@ The plugin communicates with `agent-watchd` using two channels:
 - `aw <agent>` is started directly as the terminal job, passing `--nvim-server` and `--nvim-bufnr` so `agent-watchd` can link the launch back to this Neovim session.
 - The latest-agent toggle prefers the last terminal launched or opened in the current Neovim session. If that buffer is missing or invalid, it fetches the current daemon rows for this Neovim server and opens the valid row with the highest launch ID.
 
+**Worktree tabs**
+
+- The default `nvim` worktree opener creates a new tab and switches the tab-local working directory to the selected worktree.
+- For linked Git worktrees, the opener stores tab-local Agent Watch metadata. The repository main working tree keeps normal tab labels.
+- When `worktree_tab_label` is enabled, `setup()` loads the worktree-tab module after configuration validation. If Neovim has no custom tabline configured, Agent Watch installs a tabline that labels linked worktree tabs as `[branch] fileName`.
+- Custom tabline plugins are not overwritten. They can read `vim.t.agent_watch_branch`, `vim.t.agent_watch_title`, and `vim.t.agent_watch_worktree` for linked Agent Watch worktree tabs.
+
 ---
 
 ## Neovim Server
@@ -105,6 +112,7 @@ require('agent-watch').setup({
     height         = 8,             -- watch window height in lines
     fixed_height   = true,          -- winfixheight on the watch window
     watch_interval = 1000,          -- daemon polling interval in ms
+    worktree_tab_label = true,      -- label nvim worktree tabs as [branch] fileName
     default_agent  = 'claude',      -- pre-selected agent in the launch prompt
     available_agents = { 'codex', 'agent', 'claude' }, -- agents shown in the picker
     terminal = {
@@ -127,6 +135,8 @@ require('agent-watch').setup({
 `terminal.layout` must be one of `float`, `side`, or `tab`. Invalid terminal layout settings surface an error and fall back to defaults.
 
 `worktree_opener` must be one of `nvim` or `tmux`. Invalid values surface an error and fall back to `nvim`.
+
+`worktree_tab_label` controls whether Agent Watch installs its default worktree tabline when Neovim's `tabline` option is empty. Set it to `false` to leave the tabline untouched. The default tabline labels linked worktrees only; the repository main working tree keeps normal tab labels.
 
 ### Highlight Groups
 
@@ -205,8 +215,10 @@ AgentWatchRename <id> <title>
   → PATCH <daemon_url>/launches/<id>  body: { "title": "<title>" }
   → refreshes the watch buffer on success
 
-Open selected worktree (t)
+Open selected worktree (o)
   → selected row folder from watch buffer
   → nvim opener (default): tabnew, then tcd <folder>
+  → for linked worktrees, stores vim.t.agent_watch_title, vim.t.agent_watch_branch, and vim.t.agent_watch_worktree
+  → default Agent Watch tabline labels linked worktree tabs as [branch] fileName when enabled
   → tmux opener: requires $TMUX; starts detached job: tmux new-window -n <title> -c <folder>
 ```

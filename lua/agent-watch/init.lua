@@ -15,6 +15,7 @@ local state = {
     latest = nil,
     toggle_keymap = nil,
     toggle_latest_keymap = nil,
+    worktree_tabs = nil,
 }
 
 local function first_nonempty(...)
@@ -408,6 +409,11 @@ function M.open_worktree()
     else
         vim.cmd('tabnew')
         vim.cmd('tcd ' .. vim.fn.fnameescape(folder))
+        local worktree = require('agent-watch.worktree')
+        local is_linked = worktree.is_linked_path(folder)
+        if is_linked == true and state.worktree_tabs then
+            state.worktree_tabs.mark_current(row, folder)
+        end
     end
 end
 
@@ -474,10 +480,25 @@ local function setup_keymaps()
     end
 end
 
+local function setup_worktree_tabs()
+    if state.opts.worktree_tab_label then
+        state.worktree_tabs = require('agent-watch.worktree_tabs')
+        state.worktree_tabs.setup(state.opts)
+        return
+    end
+
+    local loaded = package.loaded['agent-watch.worktree_tabs']
+    if loaded then
+        loaded.setup(state.opts)
+    end
+    state.worktree_tabs = nil
+end
+
 function M.setup(opts)
     state.opts = config.build(opts)
     highlights.setup()
     terminal.setup({ toggle_latest = M.toggle_latest })
+    setup_worktree_tabs()
     setup_keymaps()
     watcher.setup(state.opts)
     window.setup(state.opts, {

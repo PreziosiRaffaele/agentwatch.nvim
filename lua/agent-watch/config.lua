@@ -8,6 +8,7 @@ M.defaults = {
     height = 8,
     fixed_height = true,
     watch_interval = 1000,
+    worktree_tab_label = true,
     default_agent = 'claude',
     available_agents = { 'codex', 'agent', 'claude' },
     terminal = {
@@ -140,6 +141,7 @@ function M.build(opts)
     opts = vim.tbl_deep_extend('force', vim.deepcopy(M.defaults), opts or {})
     opts.cli = vim.fn.expand(opts.cli)
     opts.fixed_height = opts.fixed_height ~= false
+    opts.worktree_tab_label = opts.worktree_tab_label ~= false
     opts.height = normalize_height(opts.height)
     opts.watch_interval = tonumber(opts.watch_interval) or M.defaults.watch_interval
     validate_agent_config(opts)

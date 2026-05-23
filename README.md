@@ -88,11 +88,13 @@ the process back to this editor.
 
 **Keep parallel agent tasks separated with worktrees**
 
-Use `:AgentWatchLaunchWorktree <title> <branch> [agent]` or press `w` in the
-watch buffer to create a Git worktree and start an agent inside it. Use
+Use `:AgentWatchLaunchWorktree <title> <branch> [agent]` to create a Git
+worktree and start an agent inside it. Use
 `:AgentWatchAttachWorktree <title> <path> [agent]` when the worktree already
 exists. This is the main flow for giving each agent an isolated checkout while
-keeping all of them visible from one editor.
+keeping all of them visible from one editor. When a linked worktree opens in a
+Neovim tab, Agent Watch labels the tab as `[branch] fileName` unless you already
+use a custom tabline. The repository main working tree keeps normal tab labels.
 
 **Jump back to agent terminals quickly**
 
@@ -103,7 +105,7 @@ that agent's terminal directly.
 **Manage agent rows as tasks evolve**
 
 Rename the selected agent with `r` or `:AgentWatchRename [title]`. Open the
-selected row's worktree with `t`. Remove an agent terminal buffer with `dd`, or
+selected row's worktree with `o`. Remove an agent terminal buffer with `dd`, or
 delete a linked Git worktree with `dw` after confirmation.
 
 ## Commands
@@ -127,7 +129,7 @@ Inside the `AgentWatch` buffer:
 - `<CR>` jumps to the selected agent terminal buffer.
 - `a` prompts for title/agent and launches a new tracked agent.
 - `r` renames the selected agent.
-- `t` opens the selected agent's worktree. The current opener is tmux, using the agent title as the window name.
+- `o` opens the selected agent's worktree. The default opener labels linked worktree tabs as `[branch] fileName`.
 - `dd` force-deletes the selected agent terminal buffer.
 - `dw` deletes the selected agent's Git worktree after confirmation. It removes the worktree directory, not the branch.
 - `q` closes the watch window.
@@ -153,6 +155,8 @@ require('agent-watch').setup({
     height = 8,
     fixed_height = true,
     watch_interval = 1000,
+    worktree_opener = 'nvim',
+    worktree_tab_label = true,
     keymaps = {
         toggle = '<leader>aw',
         toggle_latest = '<C-\\><C-\\>',
@@ -174,3 +178,5 @@ If `available_agents` or `default_agent` are misconfigured, the plugin surfaces 
 `terminal.layout` controls where launched and selected agent terminals open. Use `float`, `side`, or `tab`.
 For `side`, `terminal.side` chooses `right` or `left`, and `terminal.width` controls the split width.
 For `float`, `terminal.float_width` and `terminal.float_height` are editor-size fractions from `0` to `1`.
+`worktree_opener` controls whether selected worktrees open in Neovim tabs or tmux windows.
+`worktree_tab_label` installs the default `[branch] fileName` tabline for linked Agent Watch worktree tabs when Neovim's `tabline` option is empty. Set it to `false` if your own tabline handles this.
