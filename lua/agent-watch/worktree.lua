@@ -125,6 +125,15 @@ function M.attachable_path(folder)
     return registered_worktree_path(folder)
 end
 
+function M.is_linked_path(folder)
+    local path, err, main_worktree = registered_worktree_path(folder)
+    if err then
+        return nil, err
+    end
+
+    return path ~= main_worktree, nil
+end
+
 function M.removable_path(folder)
     local path, err, main_worktree = registered_worktree_path(folder)
     if err then
