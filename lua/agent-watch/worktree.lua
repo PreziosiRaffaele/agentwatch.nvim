@@ -38,6 +38,14 @@ function M.branch_slug(branch)
     return vim.trim(branch):gsub('[^A-Za-z0-9._]+', '-')
 end
 
+function M.title_to_branch(title)
+    local s = vim.trim(tostring(title or '')):lower()
+    s = (s:gsub('[^a-z0-9._]+', '-'))
+    s = (s:gsub('^%-+', ''))
+    s = (s:gsub('%-+$', ''))
+    return s
+end
+
 function M.default_path(repo_root, branch, worktree_dir)
     local dir = (worktree_dir and worktree_dir ~= '') and worktree_dir or '.worktrees'
     local base
@@ -123,6 +131,18 @@ end
 
 function M.attachable_path(folder)
     return registered_worktree_path(folder)
+end
+
+function M.current_branch(folder)
+    local output, err = git_output(folder, { 'rev-parse', '--abbrev-ref', 'HEAD' })
+    if err or not output then
+        return nil
+    end
+    local branch = vim.trim(output)
+    if branch == '' or branch == 'HEAD' then
+        return nil
+    end
+    return branch
 end
 
 function M.is_linked_path(folder)

@@ -88,9 +88,9 @@ the process back to this editor.
 
 **Keep parallel agent tasks separated with worktrees**
 
-Use `:AgentWatchLaunchWorktree <title> <branch> [agent]` to create a Git
+Use `:AgentWatchLaunchWorktree <title> [branch] [agent]` to create a Git
 worktree and start an agent inside it. Use
-`:AgentWatchAttachWorktree <title> <path> [agent]` when the worktree already
+`:AgentWatchAttachWorktree <path> [title] [agent]` when the worktree already
 exists. This is the main flow for giving each agent an isolated checkout while
 keeping all of them visible from one editor. When a linked worktree opens in a
 Neovim tab, Agent Watch labels the tab as `[branch] fileName` unless you already
@@ -114,13 +114,13 @@ delete a linked Git worktree with `dw` after confirmation.
 - `:AgentWatchToggle` toggles the Agent Watch window visibility. When opened, the view refreshes while it is visible.
 - `:AgentWatchToggleLatest` toggles the latest agent terminal. It closes the terminal when visible and reopens it when hidden.
 - `:AgentWatchLaunch <title> [agent]` opens a terminal and starts `aw <agent>` directly inside it.
-- `:AgentWatchLaunchWorktree <title> <branch> [agent]` creates a Git worktree and starts a tracked agent inside it.
-- `:AgentWatchAttachWorktree <title> <path> [agent]` starts a tracked agent inside an existing Git worktree at `<path>`.
+- `:AgentWatchLaunchWorktree <title> [branch] [agent]` creates a Git worktree and starts a tracked agent inside it. When `branch` is omitted, it is derived from `title` (lowercased and slugified).
+- `:AgentWatchAttachWorktree <path> [title] [agent]` starts a tracked agent inside an existing Git worktree at `<path>`. When `title` is omitted, it is taken from the worktree's current branch name (falling back to the path basename if HEAD is detached).
 - `:AgentWatchRename [title]` renames the selected agent row. Without a title, it prompts for one.
 
 Titles with spaces must be quoted, for example `:AgentWatchLaunch "Fix parser" codex`
 or `:AgentWatchLaunchWorktree "Fix parser" fix/parser codex`
-or `:AgentWatchAttachWorktree "Fix parser" .worktrees/fix-parser codex`.
+or `:AgentWatchAttachWorktree .worktrees/fix-parser "Fix parser" codex`.
 
 ## Mappings
 

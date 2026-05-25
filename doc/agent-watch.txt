@@ -79,7 +79,7 @@ worktree: >
 
 Attach to an existing worktree: >
 
-    :AgentWatchAttachWorktree "Fix parser" .worktrees/fix-parser
+    :AgentWatchAttachWorktree .worktrees/fix-parser
 <
 
 Open a selected worktree from the watch buffer with `o`. With the default
@@ -129,10 +129,14 @@ COMMANDS                                              *agent-watch-commands*
 <
 
                                                 *:AgentWatchLaunchWorktree*
-:AgentWatchLaunchWorktree {title} {branch} [{agent}]
+:AgentWatchLaunchWorktree {title} [{branch}] [{agent}]
 
     Create a Git worktree on {branch} at `.worktrees/<branch-slug>` and
-    launch a tracked agent inside it. {title} and {branch} are required.
+    launch a tracked agent inside it. Only {title} is required. When
+    {branch} is omitted, it is derived from {title} (lowercased, runs of
+    non-[a-z0-9._] characters replaced by `-`). When the second
+    positional matches a configured agent name, it is treated as {agent}
+    and {branch} is derived from {title}.
 
     Example: >
 
@@ -140,14 +144,18 @@ COMMANDS                                              *agent-watch-commands*
 <
 
                                                 *:AgentWatchAttachWorktree*
-:AgentWatchAttachWorktree {title} {path} [{agent}]
+:AgentWatchAttachWorktree {path} [{title}] [{agent}]
 
     Validate the existing Git worktree at {path} and launch a tracked
-    agent inside it. {title} and {path} are required.
+    agent inside it. Only {path} is required. When {title} is omitted,
+    it is derived from the worktree's current branch name (falling back
+    to the path basename when HEAD is detached). When the second
+    positional matches a configured agent name, it is treated as {agent}
+    and {title} is derived the same way.
 
     Example: >
 
-        :AgentWatchAttachWorktree "Add tests" .worktrees/feat-tests
+        :AgentWatchAttachWorktree .worktrees/feat-tests
 <
 
                                                       *:AgentWatchRename*
