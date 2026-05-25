@@ -47,8 +47,8 @@ The plugin calls `vim.fn.serverstart()` to ensure a server address exists and pa
 | `AgentWatchToggle` | Toggle the watch window. Stopping the watch process on close. |
 | `AgentWatchToggleLatest` | Toggle the latest agent terminal. Closes it when visible, opens it when hidden. |
 | `AgentWatchLaunch <title> [agent]` | Open a terminal and start a tracked agent. |
-| `AgentWatchLaunchWorktree <title> <branch> [agent]` | Create a Git worktree, then open a terminal and start a tracked agent in it. |
-| `AgentWatchAttachWorktree <title> <path> [agent]` | Open a terminal and start a tracked agent inside an existing Git worktree at `<path>`. |
+| `AgentWatchLaunchWorktree <title> [branch] [agent]` | Create a Git worktree, then open a terminal and start a tracked agent in it. `branch` is derived from `title` when omitted. |
+| `AgentWatchAttachWorktree <path> [title] [agent]` | Open a terminal and start a tracked agent inside an existing Git worktree at `<path>`. `title` is derived from the worktree's current branch name (or the path basename when HEAD is detached) when omitted. |
 | `AgentWatchRename [title]` | Rename the selected agent. Prompts if no title is given. |
 
 ---
@@ -144,8 +144,10 @@ AgentWatchLaunch <title> [agent]
   → opens it with the configured terminal layout
   → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
 
-AgentWatchLaunchWorktree <title> <branch> [agent]
+AgentWatchLaunchWorktree <title> [branch] [agent]
   → resolves the current Git repository root
+  → when <branch> is omitted, derives it from <title> (lowercased, runs of non-[a-z0-9._] replaced by -, trimmed of leading/trailing -)
+  → when a 2nd positional is given and matches an available agent name, treats it as <agent> and still derives <branch> from <title>
   → uses the provided agent, or default_agent when omitted
   → branch_slug is the trimmed branch with non-[A-Za-z0-9._] runs replaced by -
   → creates a Git worktree at ../<branch_slug>
@@ -153,11 +155,13 @@ AgentWatchLaunchWorktree <title> <branch> [agent]
   → opens it with the configured terminal layout
   → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
 
-AgentWatchAttachWorktree <title> <path> [agent]
+AgentWatchAttachWorktree <path> [title] [agent]
   → expands ~ and resolves <path> to an absolute, real path
   → verifies the path exists and is a directory
   → runs: git -C <path> worktree list --porcelain
   → confirms <path> matches a registered worktree entry (linked or main)
+  → when <title> is omitted, derives it from the worktree's current branch (git -C <path> rev-parse --abbrev-ref HEAD), falling back to the resolved path's basename when HEAD is detached or the call fails
+  → when a 2nd positional is given and matches an available agent name, treats it as <agent> and still derives <title> via the same rule
   → uses the provided agent, or default_agent when omitted
   → ensures Neovim server is running
   → creates a hidden terminal buffer with cwd set to <path>
