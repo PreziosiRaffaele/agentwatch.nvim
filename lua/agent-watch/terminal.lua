@@ -24,8 +24,13 @@ local function set_buffer_name(bufnr)
     pcall(vim.api.nvim_buf_set_name, bufnr, name)
 end
 
-local function set_close_keymap(bufnr)
-    vim.keymap.set({ 'n', 't' }, '<C-\\><C-\\>', function()
+local function set_close_keymap(bufnr, opts)
+    local key = opts and opts.keymaps and opts.keymaps.toggle_latest
+    if not key or key == '' then
+        return
+    end
+
+    vim.keymap.set({ 'n', 't' }, key, function()
         if state.toggle_latest then
             state.toggle_latest()
             return
@@ -59,7 +64,7 @@ function M.open_float(opts, bufnr)
         title_pos = 'center',
     })
 
-    set_close_keymap(bufnr)
+    set_close_keymap(bufnr, opts)
     start_insert(bufnr)
 end
 
@@ -73,14 +78,14 @@ function M.open_side(opts, bufnr)
     vim.cmd(modifier .. ' vertical ' .. terminal.width .. 'split')
     vim.api.nvim_set_current_buf(bufnr)
     vim.cmd('vertical resize ' .. terminal.width)
-    set_close_keymap(bufnr)
+    set_close_keymap(bufnr, opts)
     start_insert(bufnr)
 end
 
-function M.open_tab(_, bufnr)
+function M.open_tab(opts, bufnr)
     vim.cmd('tabnew')
     vim.api.nvim_set_current_buf(bufnr)
-    set_close_keymap(bufnr)
+    set_close_keymap(bufnr, opts)
     start_insert(bufnr)
 end
 

@@ -22,14 +22,23 @@ The plugin communicates with `agent-watchd` using two channels:
 - A bottom scratch buffer (`botright split`) showing agents attached to the current Neovim server.
 - Filtered by `nvim_server` by calling `GET /agents?nvim_server=<current-server>`. The plugin uses the existing `vim.v.servername` when Neovim already has a server address; otherwise it starts one with `vim.fn.serverstart()` and uses the returned address. The plugin also keeps a local exact `row.nvim_server == current_server` check after parsing the response as a compatibility guard.
 - Rows with an invalid terminal buffer are excluded from the view.
+- Visible columns are `TITLE`, `STATE`, `AGENT`, `UPDATED`, and `BRANCH`.
+- The `STATE` column is highlighted with plugin-owned highlight groups linked to standard Neovim groups, so colors come from the user's active colorscheme.
 - Updated by polling the filtered daemon endpoint at `watch_interval` ms while the window is visible. Polling stops when the window closes.
 
 **Launch terminal**
 
 - Each agent is launched in a hidden terminal buffer opened with the configured terminal layout.
-- Supported terminal layouts are `float`, `side`, and `tab`. The default is `float`.
+- Supported terminal layouts are `float`, `side`, and `tab`. The default is `side`.
 - `aw <agent>` is started directly as the terminal job, passing `--nvim-server` and `--nvim-bufnr` so `agent-watchd` can link the launch back to this Neovim session.
 - The latest-agent toggle prefers the last terminal launched or opened in the current Neovim session. If that buffer is missing or invalid, it fetches the current daemon rows for this Neovim server and opens the valid row with the highest launch ID.
+
+**Worktree tabs**
+
+- The default `nvim` worktree opener creates a new tab and switches the tab-local working directory to the selected worktree.
+- For linked Git worktrees, the opener stores tab-local Agent Watch metadata. The repository main working tree keeps normal tab labels.
+- When `worktree_tab_label` is enabled, `setup()` loads the worktree-tab module after configuration validation. If Neovim has no custom tabline configured, Agent Watch installs a tabline that labels linked worktree tabs as `[branch] fileName`.
+- Custom tabline plugins are not overwritten. They can read `vim.t.agent_watch_branch`, `vim.t.agent_watch_title`, and `vim.t.agent_watch_worktree` for linked Agent Watch worktree tabs.
 
 ---
 
@@ -61,9 +70,8 @@ Inside the `AgentWatch` buffer:
 | --- | --- |
 | `<CR>` | Open the selected agent terminal with the configured terminal layout. |
 | `a` | Prompt for title and agent type, then launch. |
-| `w` | Prompt for title and branch, then launch the default agent in a new Git worktree. |
 | `r` | Rename the selected agent. |
-| `t` | Open the selected agent's worktree with the configured opener. The current opener is tmux. |
+| `o` | Open the selected agent's worktree with the configured `worktree_opener`. |
 | `dd` | Force-delete the selected agent terminal buffer. |
 | `dw` | Delete the selected agent's Git worktree after confirmation. Does not delete the branch. |
 | `q` | Close the watch window and stop the watch process. |
@@ -84,6 +92,7 @@ Global normal-mode mappings:
 
 | Key | Action |
 | --- | --- |
+| `<leader>aw` | Toggle the Agent Watch window. |
 | `<C-\><C-\>` | Toggle the latest agent terminal. |
 
 Inside agent terminal buffers, in terminal and normal mode:
@@ -103,16 +112,19 @@ require('agent-watch').setup({
     height         = 8,             -- watch window height in lines
     fixed_height   = true,          -- winfixheight on the watch window
     watch_interval = 1000,          -- daemon polling interval in ms
-    default_agent  = 'codex',       -- pre-selected agent in the launch prompt
+    worktree_tab_label = true,      -- label nvim worktree tabs as [branch] fileName
+    default_agent  = 'claude',      -- pre-selected agent in the launch prompt
     available_agents = { 'codex', 'agent', 'claude' }, -- agents shown in the picker
     terminal = {
-        layout       = 'float',      -- 'float', 'side', or 'tab'
+        layout       = 'side',       -- 'float', 'side', or 'tab'
         side         = 'right',      -- side split direction: 'right' or 'left'
         width        = 80,           -- side split width in columns
         float_width  = 0.9,          -- float width as editor fraction
         float_height = 0.85,         -- float height as editor fraction
     },
+    worktree_opener = 'nvim',         -- 'nvim' (new tab + tcd) or 'tmux' (new window)
     keymaps = {
+        toggle = '<leader>aw',
         toggle_latest = '<C-\\><C-\\>',
     },
 })
@@ -121,6 +133,31 @@ require('agent-watch').setup({
 `available_agents` must be a non-empty subset of `{ 'codex', 'agent', 'claude' }`. `default_agent` must be in `available_agents`. Both are validated at setup time; misconfigurations surface an error and fall back to defaults.
 
 `terminal.layout` must be one of `float`, `side`, or `tab`. Invalid terminal layout settings surface an error and fall back to defaults.
+
+`worktree_opener` must be one of `nvim` or `tmux`. Invalid values surface an error and fall back to `nvim`.
+
+`worktree_tab_label` controls whether Agent Watch installs its default worktree tabline when Neovim's `tabline` option is empty. Set it to `false` to leave the tabline untouched. The default tabline labels linked worktrees only; the repository main working tree keeps normal tab labels.
+
+### Highlight Groups
+
+State colors in the watch buffer use these highlight groups. Defaults are set
+with `default = true`, so users and colorschemes can override them.
+
+| Group | Default link | Used for |
+| --- | --- | --- |
+| `AgentWatchStateRunning` | `DiagnosticInfo` | session_started, working, running, active, busy |
+| `AgentWatchStateWaiting` | `DiagnosticWarn` | running_tool, running_shell, needs_approval, waiting, queued, pending, blocked |
+| `AgentWatchStateDone` | `DiagnosticOk` | done, complete, completed, success, succeeded |
+| `AgentWatchStateError` | `DiagnosticError` | failed, error, failure, stopped, cancelled, canceled |
+| `AgentWatchStateIdle` | `Comment` | idle, ready, stale, exited |
+| `AgentWatchStateChanged` | `DiagnosticHint` | edited_file |
+| `AgentWatchStateUnknown` | `Comment` | any other non-empty state |
+
+Users can customize a group after setup, for example:
+
+```lua
+vim.api.nvim_set_hl(0, 'AgentWatchStateRunning', { link = 'String' })
+```
 
 ---
 
@@ -182,8 +219,10 @@ AgentWatchRename <id> <title>
   → PATCH <daemon_url>/launches/<id>  body: { "title": "<title>" }
   → refreshes the watch buffer on success
 
-Open selected worktree
+Open selected worktree (o)
   → selected row folder from watch buffer
-  → requires $TMUX while tmux is the opener
-  → starts detached job: tmux new-window -n <title> -c <folder>
+  → nvim opener (default): tabnew, then tcd <folder>
+  → for linked worktrees, stores vim.t.agent_watch_title, vim.t.agent_watch_branch, and vim.t.agent_watch_worktree
+  → default Agent Watch tabline labels linked worktree tabs as [branch] fileName when enabled
+  → tmux opener: requires $TMUX; starts detached job: tmux new-window -n <title> -c <folder>
 ```

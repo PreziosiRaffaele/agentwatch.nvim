@@ -26,11 +26,12 @@ local function git_output(folder, args)
 end
 
 function M.repo_root()
-    local result = vim.fn.systemlist('git rev-parse --show-toplevel')
-    if vim.v.shell_error ~= 0 or not result[1] then
+    local cwd = vim.uv.cwd() or '.'
+    local result = vim.fn.systemlist('git -C ' .. vim.fn.shellescape(cwd) .. ' worktree list --porcelain')
+    if vim.v.shell_error ~= 0 or not result or not result[1] then
         return nil
     end
-    return vim.trim(result[1])
+    return vim.trim(result[1]):match('^worktree (.+)$')
 end
 
 function M.branch_slug(branch)
@@ -144,6 +145,15 @@ function M.current_branch(folder)
     return branch
 end
 
+function M.is_linked_path(folder)
+    local path, err, main_worktree = registered_worktree_path(folder)
+    if err then
+        return nil, err
+    end
+
+    return path ~= main_worktree, nil
+end
+
 function M.removable_path(folder)
     local path, err, main_worktree = registered_worktree_path(folder)
     if err then
@@ -163,7 +173,7 @@ function M.remove(folder)
         return nil, removable_err
     end
 
-    local _, remove_err = git_output(path, { 'worktree', 'remove', path })
+    local _, remove_err = git_output(main_worktree, { 'worktree', 'remove', path })
 
     if remove_err then
         if main_worktree and not vim.uv.fs_stat(path) then

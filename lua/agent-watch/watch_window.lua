@@ -1,4 +1,8 @@
+local highlights = require('agent-watch.highlights')
+
 local M = {}
+
+local namespace = vim.api.nvim_create_namespace('agent-watch-state')
 
 local state = {
     opts = nil,
@@ -17,9 +21,8 @@ local help_lines = {
     '',
     '<CR>  Open selected agent terminal',
     'a     Launch agent',
-    'w     Launch worktree agent',
     'r     Rename selected agent',
-    't     Open selected worktree',
+    'o     Open selected worktree',
     'dd    Delete selected terminal buffer',
     'dw    Delete selected worktree and terminal buffer',
     'q     Close Agent Watch',
@@ -176,12 +179,6 @@ local function create_buffer()
         { buffer = state.buf, silent = true, desc = 'Jump to agent terminal' }
     )
     vim.keymap.set('n', 'a', state.actions.launch, { buffer = state.buf, silent = true, desc = 'Add agent' })
-    vim.keymap.set(
-        'n',
-        'w',
-        state.actions.launch_worktree,
-        { buffer = state.buf, silent = true, desc = 'Launch worktree agent' }
-    )
     vim.keymap.set('n', 'r', state.actions.rename, { buffer = state.buf, silent = true, desc = 'Rename agent' })
     vim.keymap.set(
         'n',
@@ -197,7 +194,7 @@ local function create_buffer()
     )
     vim.keymap.set(
         'n',
-        't',
+        'o',
         state.actions.open_worktree,
         { buffer = state.buf, silent = true, desc = 'Open selected worktree' }
     )
@@ -243,6 +240,20 @@ function M.close()
     end
 end
 
+local function apply_state_ranges(buf, ranges)
+    vim.api.nvim_buf_clear_namespace(buf, namespace, 0, -1)
+
+    for _, range in ipairs(ranges or {}) do
+        local group = highlights.state_group(range.state)
+        if group then
+            vim.api.nvim_buf_set_extmark(buf, namespace, range.line - 1, range.col, {
+                end_col = range.end_col,
+                hl_group = group,
+            })
+        end
+    end
+end
+
 function M.set_lines(lines, rows_by_line, opts)
     opts = opts or {}
 
@@ -273,6 +284,7 @@ function M.set_lines(lines, rows_by_line, opts)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
     vim.bo[buf].modifiable = false
     vim.bo[buf].readonly = true
+    apply_state_ranges(buf, opts.state_ranges)
 
     if valid_win(win) then
         if not rows_by_line[cursor_line] then

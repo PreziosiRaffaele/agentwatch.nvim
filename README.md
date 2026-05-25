@@ -1,6 +1,112 @@
 # agent-watch.nvim
 
-Local Neovim integration for the sibling `agent-watch` CLI.
+Track coding agents from Neovim while they work in parallel across separate Git
+worktrees.
+
+`agent-watch.nvim` is for reviewing and steering agent work from the editor you
+already use for code. It launches agents, records which terminal buffer and
+worktree each one belongs to, and shows the agents attached to the current
+Neovim session in a live watch window.
+
+This is most useful when you split work across multiple agents: one agent can fix
+a bug in one worktree, another can explore a refactor in a second worktree, and a
+third can write tests somewhere else. From Neovim, you can jump to any agent's
+terminal, open the associated worktree, inspect the files, review the diff, and
+keep each task labeled as it evolves.
+
+## Installation
+
+The Neovim plugin depends on the `agent-watch` command-line tool. It provides
+the `aw` launcher used to start tracked agents and the local `agent-watchd`
+daemon that stores their live state.
+
+The command-line tool runs on [Bun](https://bun.sh/), a JavaScript runtime and
+package manager. If you do not already have Bun installed, install it first:
+
+```sh
+curl -fsSL https://bun.sh/install | bash
+```
+
+On Windows, use PowerShell:
+
+```powershell
+powershell -c "irm bun.sh/install.ps1|iex"
+```
+
+Then restart your shell and verify that Bun is available:
+
+```sh
+bun --version
+```
+
+After Bun is installed, install the `agent-watch` CLI:
+
+```sh
+bun install -g @preziosiraffaele/agent-watch
+```
+
+### Neovim built-in package manager
+
+With Neovim's built-in package manager, add the plugin in your `init.lua`:
+
+```lua
+vim.pack.add({
+    { src = 'https://github.com/PreziosiRaffaele/agent-watch-nvim' },
+})
+
+require('agent-watch').setup()
+```
+
+Restart Neovim after adding the plugin.
+
+### lazy.nvim
+
+With lazy.nvim, add a plugin spec like this:
+
+```lua
+return {
+    'PreziosiRaffaele/agent-watch-nvim',
+    event = 'VeryLazy',
+}
+```
+
+## Workflows
+
+**Watch active agents from Neovim**
+
+Run `:AgentWatch` to open a bottom scratch buffer with the agents attached to the
+current Neovim server. The view refreshes while it is visible and filters out
+agents from other Neovim sessions, so the list stays focused on the workspace
+you are editing.
+
+**Launch an agent without leaving the editor**
+
+Use `:AgentWatchLaunch <title> [agent]` or press `a` in the watch buffer. The
+plugin opens a terminal using your configured layout and starts `aw <agent>`
+inside it, passing the Neovim server and buffer number so `agent-watchd` can link
+the process back to this editor.
+
+**Keep parallel agent tasks separated with worktrees**
+
+Use `:AgentWatchLaunchWorktree <title> [branch] [agent]` to create a Git
+worktree and start an agent inside it. Use
+`:AgentWatchAttachWorktree <path> [title] [agent]` when the worktree already
+exists. This is the main flow for giving each agent an isolated checkout while
+keeping all of them visible from one editor. When a linked worktree opens in a
+Neovim tab, Agent Watch labels the tab as `[branch] fileName` unless you already
+use a custom tabline. The repository main working tree keeps normal tab labels.
+
+**Jump back to agent terminals quickly**
+
+Use `:AgentWatchToggleLatest` or the default `<C-\><C-\>` mapping to toggle the
+latest agent terminal. From the watch buffer, press `<CR>` on any row to open
+that agent's terminal directly.
+
+**Manage agent rows as tasks evolve**
+
+Rename the selected agent with `r` or `:AgentWatchRename [title]`. Open the
+selected row's worktree with `o`. Remove an agent terminal buffer with `dd`, or
+delete a linked Git worktree with `dw` after confirmation.
 
 ## Commands
 
@@ -22,9 +128,8 @@ Inside the `AgentWatch` buffer:
 
 - `<CR>` jumps to the selected agent terminal buffer.
 - `a` prompts for title/agent and launches a new tracked agent.
-- `w` prompts for title/branch and launches the default agent in a Git worktree.
 - `r` renames the selected agent.
-- `t` opens the selected agent's worktree. The current opener is tmux, using the agent title as the window name.
+- `o` opens the selected agent's worktree. The default opener labels linked worktree tabs as `[branch] fileName`.
 - `dd` force-deletes the selected agent terminal buffer.
 - `dw` deletes the selected agent's Git worktree after confirmation. It removes the worktree directory, not the branch.
 - `q` closes the watch window.
@@ -32,38 +137,36 @@ Inside the `AgentWatch` buffer:
 
 Global normal-mode mappings:
 
+- `<leader>aw` toggles the Agent Watch window.
 - `<C-\><C-\>` toggles the latest agent terminal.
 
 Inside agent terminal buffers, in terminal and normal mode:
 
 - `<C-\><C-\>` toggles the latest agent terminal.
 
-## Setup
+## Configuration
 
 ```lua
-return {
-    dir = '~/code/agent-watch-nvim',
-    cmd = { 'AgentWatch', 'AgentWatchToggle', 'AgentWatchToggleLatest', 'AgentWatchLaunch', 'AgentWatchLaunchWorktree', 'AgentWatchAttachWorktree', 'AgentWatchRename' },
-    opts = {
-        cli = 'aw',
-        daemon_url = nil,
-        default_agent = 'codex',
-        available_agents = { 'codex', 'agent', 'claude' },
-        height = 8,
-        fixed_height = true,
-        watch_interval = 1000,
-        keymaps = {
-            toggle_latest = '<C-\\><C-\\>',
-        },
-        terminal = {
-            layout = 'float', -- 'float', 'side', or 'tab'
-            side = 'right',
-            width = 80,
-            float_width = 0.9,
-            float_height = 0.85,
-        },
+require('agent-watch').setup({
+    cli = 'aw',
+    daemon_url = nil,
+    default_agent = 'claude',
+    available_agents = { 'codex', 'agent', 'claude' },
+    height = 8,
+    fixed_height = true,
+    watch_interval = 1000,
+    worktree_opener = 'nvim',
+    worktree_tab_label = true,
+    keymaps = {
+        toggle = '<leader>aw',
+        toggle_latest = '<C-\\><C-\\>',
     },
-}
+    terminal = {
+        layout = 'side', -- 'float', 'side', or 'tab'
+        side = 'right',
+        width = 80, -- side split width in columns
+    },
+})
 ```
 
 `height` controls the bottom `:AgentWatch` window height in lines.
@@ -75,17 +178,5 @@ If `available_agents` or `default_agent` are misconfigured, the plugin surfaces 
 `terminal.layout` controls where launched and selected agent terminals open. Use `float`, `side`, or `tab`.
 For `side`, `terminal.side` chooses `right` or `left`, and `terminal.width` controls the split width.
 For `float`, `terminal.float_width` and `terminal.float_height` are editor-size fractions from `0` to `1`.
-
-## Code quality
-
-Format Lua files with Stylua:
-
-```sh
-stylua .
-```
-
-Verify formatting (for CI/pre-commit):
-
-```sh
-stylua --check .
-```
+`worktree_opener` controls whether selected worktrees open in Neovim tabs or tmux windows.
+`worktree_tab_label` installs the default `[branch] fileName` tabline for linked Agent Watch worktree tabs when Neovim's `tabline` option is empty. Set it to `false` if your own tabline handles this.

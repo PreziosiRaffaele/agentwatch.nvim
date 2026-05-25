@@ -1,5 +1,6 @@
 local config = require('agent-watch.config')
 local daemon = require('agent-watch.daemon')
+local highlights = require('agent-watch.highlights')
 local notify = require('agent-watch.notify').notify
 local rows = require('agent-watch.rows')
 local server = require('agent-watch.nvim_server')
@@ -12,7 +13,9 @@ local M = {}
 local state = {
     opts = config.build(),
     latest = nil,
+    toggle_keymap = nil,
     toggle_latest_keymap = nil,
+    worktree_tabs = nil,
 }
 
 local function first_nonempty(...)
@@ -428,17 +431,27 @@ function M.open_worktree()
         return
     end
 
-    if not vim.env.TMUX or vim.env.TMUX == '' then
-        notify('Not in a tmux session ($TMUX is unset)', vim.log.levels.ERROR)
-        return
-    end
+    if state.opts.worktree_opener == 'tmux' then
+        if not vim.env.TMUX or vim.env.TMUX == '' then
+            notify('Not in a tmux session ($TMUX is unset)', vim.log.levels.ERROR)
+            return
+        end
 
-    local title = rows.field(row, { 'title', 'name', 'summary' })
-    if title == '' then
-        title = vim.fn.fnamemodify(folder, ':t')
-    end
+        local title = rows.field(row, { 'title', 'name', 'summary' })
+        if title == '' then
+            title = vim.fn.fnamemodify(folder, ':t')
+        end
 
-    vim.fn.jobstart({ 'tmux', 'new-window', '-n', title, '-c', folder }, { detach = true })
+        vim.fn.jobstart({ 'tmux', 'new-window', '-n', title, '-c', folder }, { detach = true })
+    else
+        vim.cmd('tabnew')
+        vim.cmd('tcd ' .. vim.fn.fnameescape(folder))
+        local worktree = require('agent-watch.worktree')
+        local is_linked = worktree.is_linked_path(folder)
+        if is_linked == true and state.worktree_tabs then
+            state.worktree_tabs.mark_current(row, folder)
+        end
+    end
 end
 
 local function complete_agent(arg_lead, cmd_line)
@@ -475,26 +488,54 @@ local function complete_attach_worktree(arg_lead, cmd_line)
 end
 
 local function setup_keymaps()
+    if state.toggle_keymap then
+        pcall(vim.keymap.del, 'n', state.toggle_keymap)
+        state.toggle_keymap = nil
+    end
+
     if state.toggle_latest_keymap then
         pcall(vim.keymap.del, 'n', state.toggle_latest_keymap)
         state.toggle_latest_keymap = nil
     end
 
-    local keymap = state.opts.keymaps and state.opts.keymaps.toggle_latest
-    if type(keymap) ~= 'string' or keymap == '' then
+    local toggle_keymap = state.opts.keymaps and state.opts.keymaps.toggle
+    if type(toggle_keymap) == 'string' and toggle_keymap ~= '' then
+        vim.keymap.set('n', toggle_keymap, M.toggle, {
+            silent = true,
+            desc = 'Toggle Agent Watch',
+        })
+        state.toggle_keymap = toggle_keymap
+    end
+
+    local toggle_latest_keymap = state.opts.keymaps and state.opts.keymaps.toggle_latest
+    if type(toggle_latest_keymap) == 'string' and toggle_latest_keymap ~= '' then
+        vim.keymap.set('n', toggle_latest_keymap, M.toggle_latest, {
+            silent = true,
+            desc = 'Toggle latest agent terminal',
+        })
+        state.toggle_latest_keymap = toggle_latest_keymap
+    end
+end
+
+local function setup_worktree_tabs()
+    if state.opts.worktree_tab_label then
+        state.worktree_tabs = require('agent-watch.worktree_tabs')
+        state.worktree_tabs.setup(state.opts)
         return
     end
 
-    vim.keymap.set('n', keymap, M.toggle_latest, {
-        silent = true,
-        desc = 'Toggle latest agent terminal',
-    })
-    state.toggle_latest_keymap = keymap
+    local loaded = package.loaded['agent-watch.worktree_tabs']
+    if loaded then
+        loaded.setup(state.opts)
+    end
+    state.worktree_tabs = nil
 end
 
 function M.setup(opts)
     state.opts = config.build(opts)
+    highlights.setup()
     terminal.setup({ toggle_latest = M.toggle_latest })
+    setup_worktree_tabs()
     setup_keymaps()
     watcher.setup(state.opts)
     window.setup(state.opts, {

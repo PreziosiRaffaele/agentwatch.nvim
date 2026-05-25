@@ -1,0 +1,349 @@
+*agent-watch.txt*	Neovim integration for managing AI coding agents
+
+Author:  Raffaele Preziosi <rafforider@gmail.com>
+License: MIT License
+
+==============================================================================
+CONTENTS                                                *agent-watch-contents*
+
+    1. Introduction ............................ |agent-watch-introduction|
+    2. Requirements ............................ |agent-watch-requirements|
+    3. Installation ............................ |agent-watch-installation|
+    4. Usage .................................... |agent-watch-usage|
+    5. Commands ................................ |agent-watch-commands|
+    6. Mappings ................................ |agent-watch-mappings|
+    7. Configuration ........................... |agent-watch-configuration|
+    8. About .................................... |agent-watch-about|
+
+==============================================================================
+INTRODUCTION                                        *agent-watch-introduction*
+
+agent-watch.nvim integrates Neovim with the `agent-watch` CLI ecosystem.
+It displays live AI coding agent state in a watch buffer, lets you launch
+and manage agent terminals directly from the editor, and supports Git
+worktrees for isolated per-branch development.
+
+The plugin communicates with `agent-watchd` — a local daemon that tracks
+agent instances — and exposes commands, buffer-local mappings, and a
+configurable global keymap.
+
+==============================================================================
+REQUIREMENTS                                        *agent-watch-requirements*
+
+- Neovim (with Lua support)
+- `aw` CLI available in `$PATH` (the agent-watch command-line tool)
+- `agent-watchd` daemon (auto-started by `aw`)
+- Git (for worktree operations)
+- `curl` (for HTTP requests to the daemon)
+- `tmux` (optional, required only when `worktree_opener = 'tmux'`)
+
+==============================================================================
+INSTALLATION                                        *agent-watch-installation*
+
+With lazy.nvim: >lua
+
+    {
+        dir = '~/code/agent-watch-nvim',
+        cmd = {
+            'AgentWatch',
+            'AgentWatchToggle',
+            'AgentWatchToggleLatest',
+            'AgentWatchLaunch',
+            'AgentWatchLaunchWorktree',
+            'AgentWatchAttachWorktree',
+            'AgentWatchRename',
+        },
+        opts = {},
+    }
+<
+
+==============================================================================
+USAGE                                                      *agent-watch-usage*
+
+Open the watch buffer to see all agents attached to the current Neovim
+server: >
+
+    :AgentWatch
+<
+
+Launch a new tracked agent with a title: >
+
+    :AgentWatchLaunch "Fix parser" codex
+<
+
+Titles with spaces must be quoted. Launch a tracked agent in a new Git
+worktree: >
+
+    :AgentWatchLaunchWorktree "Fix parser" fix/parser codex
+<
+
+Attach to an existing worktree: >
+
+    :AgentWatchAttachWorktree .worktrees/fix-parser
+<
+
+Open a selected worktree from the watch buffer with `o`. With the default
+Neovim opener, linked worktrees open in new tabs labeled as `[branch] fileName`
+unless a custom tabline is already configured. The repository main working tree
+keeps normal tab labels.
+
+Toggle the last active agent terminal from anywhere with the global
+keymap: >
+
+    <C-\><C-\>
+<
+
+==============================================================================
+COMMANDS                                              *agent-watch-commands*
+
+                                                            *:AgentWatch*
+:AgentWatch
+
+    Open or refresh the watch buffer. The buffer lists all agents
+    attached to the current Neovim server with their title, state, agent
+    type, relative last-updated timestamp, and branch.
+
+                                                      *:AgentWatchToggle*
+:AgentWatchToggle
+
+    Toggle the watch window visibility. Polling starts when the window
+    opens and stops when it closes.
+
+                                                *:AgentWatchToggleLatest*
+:AgentWatchToggleLatest
+
+    Toggle the latest launched or opened agent terminal. Closes the
+    terminal when it is visible, reopens it when hidden. Falls back to
+    the highest-ID agent from the daemon if local state is invalid.
+
+                                                      *:AgentWatchLaunch*
+:AgentWatchLaunch {title} [{agent}]
+
+    Open a terminal and start `aw {agent}` inside it. {title} is
+    required; wrap in quotes when it contains spaces. {agent} defaults
+    to `default_agent` (see |agent-watch-config-default-agent|).
+
+    Example: >
+
+        :AgentWatchLaunch "Add tests" codex
+<
+
+                                                *:AgentWatchLaunchWorktree*
+:AgentWatchLaunchWorktree {title} [{branch}] [{agent}]
+
+    Create a Git worktree on {branch} at `.worktrees/<branch-slug>` and
+    launch a tracked agent inside it. Only {title} is required. When
+    {branch} is omitted, it is derived from {title} (lowercased, runs of
+    non-[a-z0-9._] characters replaced by `-`). When the second
+    positional matches a configured agent name, it is treated as {agent}
+    and {branch} is derived from {title}.
+
+    Example: >
+
+        :AgentWatchLaunchWorktree "Add tests" feat/tests codex
+<
+
+                                                *:AgentWatchAttachWorktree*
+:AgentWatchAttachWorktree {path} [{title}] [{agent}]
+
+    Validate the existing Git worktree at {path} and launch a tracked
+    agent inside it. Only {path} is required. When {title} is omitted,
+    it is derived from the worktree's current branch name (falling back
+    to the path basename when HEAD is detached). When the second
+    positional matches a configured agent name, it is treated as {agent}
+    and {title} is derived the same way.
+
+    Example: >
+
+        :AgentWatchAttachWorktree .worktrees/feat-tests
+<
+
+                                                      *:AgentWatchRename*
+:AgentWatchRename [{title}]
+
+    Rename the agent on the currently selected watch-buffer row. If
+    {title} is omitted, a prompt is shown.
+
+==============================================================================
+MAPPINGS                                              *agent-watch-mappings*
+
+Watch buffer mappings~                        *agent-watch-watch-mappings*
+
+These mappings are active only inside the |:AgentWatch| buffer.
+
+Key    Action ~
+<CR>   Jump to the selected agent's terminal buffer.
+a      Prompt for title and agent, then launch a new tracked agent.
+r      Rename the selected agent (prompts for title).
+o      Open the selected agent's worktree (Neovim tab or tmux window,
+       depending on |agent-watch-config-worktree-opener|).
+dd     Force-delete the selected agent's terminal buffer.
+dw     Delete the selected agent's Git worktree after confirmation.
+       Note: removes the worktree directory, not the branch.
+q      Close the watch window.
+?      Toggle the floating help window showing all watch-buffer keys.
+
+Global mappings~                             *agent-watch-global-mappings*
+
+<leader>aw                                      *agent-watch-toggle-map*
+
+    Toggle the Agent Watch window. Active in normal mode globally.
+    Configurable via |agent-watch-config-keymaps|.
+
+<C-\><C-\>                               *agent-watch-toggle-latest-map*
+
+    Toggle the latest agent terminal. Active in normal mode globally and
+    in both normal and terminal mode inside agent terminal buffers.
+    Configurable via |agent-watch-config-keymaps|.
+
+==============================================================================
+CONFIGURATION                                      *agent-watch-configuration*
+
+Pass options to `setup()`: >lua
+
+    require('agent-watch').setup({
+        cli = 'aw',
+        daemon_url = nil,
+        default_agent = 'claude',
+        available_agents = { 'codex', 'agent', 'claude' },
+        height = 8,
+        fixed_height = true,
+        watch_interval = 1000,
+        worktree_opener = 'nvim',
+        worktree_tab_label = true,
+        keymaps = {
+            toggle = '<leader>aw',
+            toggle_latest = '<C-\\><C-\\>',
+        },
+        terminal = {
+            layout = 'side',
+            side = 'right',
+            width = 80,
+            float_width = 0.9,
+            float_height = 0.85,
+        },
+    })
+<
+
+                                                    *agent-watch-config-cli*
+cli (default: `'aw'`)
+
+    Path to the `aw` CLI executable. Change this if `aw` is not on your
+    `$PATH` or if you want to use an absolute path.
+
+                                             *agent-watch-config-daemon-url*
+daemon_url (default: `nil`)
+
+    Override the `agent-watchd` base URL. When `nil`, the plugin reads
+    `~/.agent-watch/daemon.json` then falls back to
+    `http://127.0.0.1:3847`.
+
+                                          *agent-watch-config-default-agent*
+default_agent (default: `'claude'`)
+
+    Agent pre-selected in launch prompts and used when no `[agent]`
+    argument is supplied to |:AgentWatchLaunch|. Must be a member of
+    |agent-watch-config-available-agents|.
+
+                                       *agent-watch-config-available-agents*
+available_agents (default: `{ 'codex', 'agent', 'claude' }`)
+
+    List of agents available in the picker and accepted as the `[agent]`
+    argument to launch commands. Allowed values: `'codex'`, `'agent'`,
+    `'claude'`. If misconfigured, the plugin surfaces an error and falls
+    back to the default list.
+
+                                                 *agent-watch-config-height*
+height (default: `8`)
+
+    Height of the |:AgentWatch| window in lines.
+
+                                            *agent-watch-config-fixed-height*
+fixed_height (default: `true`)
+
+    When `true`, applies `winfixheight` to the watch window so it keeps
+    a fixed height when splits are resized.
+
+                                          *agent-watch-config-watch-interval*
+watch_interval (default: `1000`)
+
+    Polling interval in milliseconds. The watch buffer refreshes at this
+    rate while the window is visible.
+
+                                          *agent-watch-config-worktree-opener*
+worktree_opener (default: `'nvim'`)
+
+    How the `o` watch-buffer key opens a worktree. Accepted values:
+
+    `'nvim'`    Open the worktree in a new Neovim tab (`:tabnew` + `:tcd`).
+    `'tmux'`    Open the worktree in a new tmux window. Requires an active
+                tmux session (`$TMUX` must be set).
+
+    If misconfigured, the plugin surfaces an error and falls back to
+    `'nvim'`.
+
+                                       *agent-watch-config-worktree-tab-label*
+worktree_tab_label (default: `true`)
+
+    When `true`, Agent Watch installs its default tabline if Neovim's
+    `tabline` option is empty. Linked worktree tabs opened by Agent Watch
+    are labeled as `[branch] fileName`. The repository main working tree
+    keeps normal tab labels.
+
+    Custom tabline plugins are not overwritten. They can read
+    `vim.t.agent_watch_branch`, `vim.t.agent_watch_title`, and
+    `vim.t.agent_watch_worktree`.
+
+                                                *agent-watch-config-terminal*
+terminal.layout (default: `'side'`)
+
+    Where launched agent terminals open. Accepted values:
+
+    `'float'`   Floating window covering most of the editor.
+    `'side'`    Vertical split on the side of the editor.
+    `'tab'`     New tab.
+
+                                            *agent-watch-config-terminal-side*
+terminal.side (default: `'right'`)
+
+    Side for the split when `terminal.layout` is `'side'`. Accepted
+    values: `'right'`, `'left'`.
+
+                                           *agent-watch-config-terminal-width*
+terminal.width (default: `80`)
+
+    Column width of the split when `terminal.layout` is `'side'`.
+
+                                     *agent-watch-config-terminal-float-width*
+terminal.float_width (default: `0.9`)
+
+    Width of the floating window as a fraction of the editor width
+    (0.0–1.0). Used when `terminal.layout` is `'float'`.
+
+                                    *agent-watch-config-terminal-float-height*
+terminal.float_height (default: `0.85`)
+
+    Height of the floating window as a fraction of the editor height
+    (0.0–1.0). Used when `terminal.layout` is `'float'`.
+
+                                                *agent-watch-config-keymaps*
+keymaps.toggle (default: `'<leader>aw'`)
+
+    Global normal-mode keymap for |:AgentWatchToggle|. Set to `false`
+    or `''` to disable.
+
+keymaps.toggle_latest (default: `'<C-\><C-\>'`)
+
+    Global normal-mode keymap for |:AgentWatchToggleLatest|. Also set
+    in terminal and normal mode inside agent terminal buffers. Set to
+    `false` or `''` to disable.
+
+==============================================================================
+ABOUT                                                      *agent-watch-about*
+
+Author:  Raffaele Preziosi <rafforider@gmail.com>
+License: MIT License
+Source:  https://github.com/PreziosiRaffaele/agent-watch-nvim
+
+==============================================================================
+vim:tw=78 ts=8 sts=4 sw=4 noet fdm=marker ft=help

@@ -8,17 +8,20 @@ M.defaults = {
     height = 8,
     fixed_height = true,
     watch_interval = 1000,
-    default_agent = 'codex',
+    worktree_tab_label = true,
+    default_agent = 'claude',
     available_agents = { 'codex', 'agent', 'claude' },
     terminal = {
-        layout = 'float',
+        layout = 'side',
         side = 'right',
         width = 80,
         float_width = 0.9,
         float_height = 0.85,
     },
     worktree_dir = '.worktrees',
+    worktree_opener = 'nvim',
     keymaps = {
+        toggle = '<leader>aw',
         toggle_latest = '<C-\\><C-\\>',
     },
 }
@@ -28,6 +31,11 @@ local supported_agent_set = {}
 for _, agent in ipairs(supported_agents) do
     supported_agent_set[agent] = true
 end
+
+local supported_worktree_opener_set = {
+    nvim = true,
+    tmux = true,
+}
 
 local supported_terminal_layout_set = {
     float = true,
@@ -96,6 +104,13 @@ local function normalize_fraction(value, default)
     return value
 end
 
+local function validate_worktree_opener(opts)
+    if not supported_worktree_opener_set[opts.worktree_opener] then
+        notify('Invalid worktree_opener. Use one of: nvim, tmux. Falling back to "nvim".', vim.log.levels.ERROR)
+        opts.worktree_opener = 'nvim'
+    end
+end
+
 local function validate_terminal_config(opts)
     local terminal = opts.terminal
     if type(terminal) ~= 'table' then
@@ -126,10 +141,12 @@ function M.build(opts)
     opts = vim.tbl_deep_extend('force', vim.deepcopy(M.defaults), opts or {})
     opts.cli = vim.fn.expand(opts.cli)
     opts.fixed_height = opts.fixed_height ~= false
+    opts.worktree_tab_label = opts.worktree_tab_label ~= false
     opts.height = normalize_height(opts.height)
     opts.watch_interval = tonumber(opts.watch_interval) or M.defaults.watch_interval
     validate_agent_config(opts)
     validate_terminal_config(opts)
+    validate_worktree_opener(opts)
     return opts
 end
 
