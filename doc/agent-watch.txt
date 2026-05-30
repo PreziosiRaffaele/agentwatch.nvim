@@ -43,7 +43,7 @@ INSTALLATION                                        *agent-watch-installation*
 With lazy.nvim: >lua
 
     {
-        dir = '~/code/agent-watch-nvim',
+        dir = '~/code/agentwatch.nvim',
         cmd = {
             'AgentWatch',
             'AgentWatchToggle',
@@ -343,7 +343,7 @@ ABOUT                                                      *agent-watch-about*
 
 Author:  Raffaele Preziosi <rafforider@gmail.com>
 License: MIT License
-Source:  https://github.com/PreziosiRaffaele/agent-watch-nvim
+Source:  https://github.com/PreziosiRaffaele/agentwatch.nvim
 
 ==============================================================================
 vim:tw=78 ts=8 sts=4 sw=4 noet fdm=marker ft=help

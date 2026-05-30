@@ -51,7 +51,7 @@ With Neovim's built-in package manager, add the plugin in your `init.lua`:
 
 ```lua
 vim.pack.add({
-    { src = 'https://github.com/PreziosiRaffaele/agent-watch-nvim' },
+    { src = 'https://github.com/PreziosiRaffaele/agentwatch.nvim' },
 })
 
 require('agent-watch').setup()
@@ -65,7 +65,7 @@ With lazy.nvim, add a plugin spec like this:
 
 ```lua
 return {
-    'PreziosiRaffaele/agent-watch-nvim',
+    'PreziosiRaffaele/agentwatch.nvim',
     event = 'VeryLazy',
 }
 ```
