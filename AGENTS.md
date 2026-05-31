@@ -90,8 +90,6 @@ nvim --headless --noplugin -u tests/minimal_init.lua \
   -c "lua MiniTest.run_file('tests/unit/test_rows.lua')"
 ```
 
-The `test-nvim` Claude Code skill wraps these commands.
-
 ## Verification
 
 After any edit to `*.lua` files, run `make quality` before finishing.
