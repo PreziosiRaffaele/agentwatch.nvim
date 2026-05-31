@@ -27,13 +27,12 @@ When changing or removing public commands, flags, columns, or JSON fields, updat
 
 - `plugin/agent-watch.lua`: Neovim startup shim. Keep it minimal; require the Lua module and call setup only.
 - `lua/agent-watch/`: plugin implementation.
+- `tests/`: test suite (see Testing below).
 - `docs/spec.md`: canonical product and integration spec.
 - `README.md`: installation and daily-use documentation.
 - `AGENTS.md`: contributor workflow, code quality, and development guardrails.
 
-Avoid adding new top-level directories unless they have a clear role. If tests
-are introduced, prefer a conventional `tests/` directory and document the runner
-here.
+Avoid adding new top-level directories unless they have a clear role.
 
 ## Development Practices
 
@@ -66,7 +65,35 @@ For every new feature, follow this sequence:
 3. **Update the main spec** — apply the changes described in the feature spec to
    `docs/spec.md`, then delete the feature spec file.
 
+## Testing
+
+Tests use [`mini.test`](https://github.com/echasnovski/mini.nvim) in headless
+Neovim. The suite is fully offline and deterministic: the plugin talks to
+`agent-watchd` only through `curl` and to agents only through the `aw` CLI, so
+both are replaced by stubs in `tests/helpers/fake_bin/`. No real daemon, agent,
+or network is ever contacted — never add a test that drives a live agent.
+
+- `tests/unit/` — pure-logic cases (rows, config, daemon URL/JSON parsing,
+  worktree slug/path, highlight mapping). Run in the runner process.
+- `tests/integration/` — drive the real commands and keymaps in a child Neovim
+  (`MiniTest.new_child_neovim`) against the stub `curl` (canned `/agents`,
+  recorded `PATCH`) and fake `aw`, plus real temporary git repos for worktrees.
+- `tests/helpers/` — `child.lua` (child bootstrap, PATH, wait helpers) and the
+  `fake_bin/` stubs. `tests/minimal_init.lua` bootstraps the rtp for both the
+  runner and child Neovims.
+
+Run the full suite with `make test` (clones the test-only `mini.nvim` into
+`deps/` on first run). Run one file with:
+
+```sh
+nvim --headless --noplugin -u tests/minimal_init.lua \
+  -c "lua MiniTest.run_file('tests/unit/test_rows.lua')"
+```
+
+The `test-nvim` Claude Code skill wraps these commands.
+
 ## Verification
 
 After any edit to `*.lua` files, run `make quality` before finishing.
 This runs luacheck (static analysis) and stylua (formatting) and must pass with no errors.
+Run `make test` (or `make check` for both) when you change plugin behavior or tests.

@@ -2,7 +2,7 @@
   "runtime": { "version": "LuaJIT" },
   "workspace": { "checkThirdParty": false },
   "diagnostics": {
-    "globals": ["vim"],
+    "globals": ["vim", "MiniTest"],
     "severity": {
       "need-check-nil": "Error",
       "param-type-mismatch": "Error"
