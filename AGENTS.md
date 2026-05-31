@@ -82,8 +82,10 @@ or network is ever contacted — never add a test that drives a live agent.
   `fake_bin/` stubs. `tests/minimal_init.lua` bootstraps the rtp for both the
   runner and child Neovims.
 
-Run the full suite with `make test` (clones the test-only `mini.nvim` into
-`deps/` on first run). Run one file with:
+Run the full suite with `make test`. On first run it clones the test-only
+`mini.nvim` into `deps/` at a pinned release (`MINI_NVIM_REF` in the `Makefile`)
+so the suite stays reproducible; bump that ref deliberately to upgrade. Run one
+file with:
 
 ```sh
 nvim --headless --noplugin -u tests/minimal_init.lua \
