@@ -105,8 +105,8 @@ that agent's terminal directly.
 **Manage agent rows as tasks evolve**
 
 Rename the selected agent with `r` or `:AgentWatchRename [title]`. Open the
-selected row's worktree with `o`. Remove an agent terminal buffer with `dd`, or
-delete a linked Git worktree with `dw` after confirmation.
+selected row's worktree with `o`. Delete an agent with `dd` after confirmation,
+or delete a linked Git worktree and its agent with `dw` after confirmation.
 
 ## Commands
 
@@ -130,8 +130,8 @@ Inside the `AgentWatch` buffer:
 - `a` prompts for title/agent and launches a new tracked agent.
 - `r` renames the selected agent.
 - `o` opens the selected agent's worktree. The default opener labels linked worktree tabs as `[branch] fileName`.
-- `dd` force-deletes the selected agent terminal buffer.
-- `dw` deletes the selected agent's Git worktree after confirmation. It removes the worktree directory, not the branch.
+- `dd` deletes the selected agent after confirmation and force-deletes its terminal buffer if it still exists.
+- `dw` deletes the selected agent's Git worktree and agent record after confirmation. It removes the worktree directory, not the branch.
 - `q` closes the watch window.
 - `?` toggles the floating help window for the complete watch-buffer keymap.
 

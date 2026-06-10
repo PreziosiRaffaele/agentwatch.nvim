@@ -103,4 +103,56 @@ T['AgentWatchLaunchWorktree creates a worktree and launches in it'] = function()
     expect.equality(res.log:find('--title login', 1, true) ~= nil, true)
 end
 
+T['dw deletes a linked worktree and launch record'] = function()
+    child.lua([[
+        local wt = require('agent-watch.worktree')
+        _G.delete_worktree_path = _G.repo .. '/.worktrees/delete-me'
+        wt.add(_G.repo, 'delete-me', _G.delete_worktree_path)
+        _G.agent_buf = vim.api.nvim_create_buf(false, true)
+        local row = {
+            id = 7, title = 'delete me', state = 'working', agent = 'claude',
+            branch = 'delete-me', folder = _G.delete_worktree_path,
+            nvim_server = vim.v.servername,
+            nvim_terminal_bufnr = _G.agent_buf,
+        }
+        local f = vim.fn.tempname()
+        vim.fn.writefile({ vim.json.encode({ row }) }, f)
+        vim.env.AW_DAEMON_AGENTS_FILE = f
+        vim.env.AW_DAEMON_DELETE_LOG = vim.fn.tempname()
+        _G.watch_has = function(pat)
+            for _, b in ipairs(vim.api.nvim_list_bufs()) do
+                if vim.bo[b].filetype == 'agent-watch' then
+                    for _, l in ipairs(vim.api.nvim_buf_get_lines(b, 0, -1, false)) do
+                        if l:find(pat, 1, true) then return true end
+                    end
+                end
+            end
+            return false
+        end
+    ]])
+    child.cmd('AgentWatch')
+    h.wait_for(child, "_G.watch_has('delete me')")
+
+    child.lua([[
+        for _, w in ipairs(vim.api.nvim_list_wins()) do
+            if vim.bo[vim.api.nvim_win_get_buf(w)].filetype == 'agent-watch' then
+                vim.api.nvim_set_current_win(w)
+            end
+        end
+    ]])
+    child.type_keys('dw')
+    child.type_keys('y<CR>')
+
+    eq(h.wait_for(child, 'vim.fn.getfsize(vim.env.AW_DAEMON_DELETE_LOG) > 0'), true)
+    eq(h.wait_for(child, 'not vim.api.nvim_buf_is_valid(_G.agent_buf)'), true)
+    local res = child.lua_get([[(function()
+        return {
+            exists = vim.uv.fs_stat(_G.delete_worktree_path) ~= nil,
+            log = table.concat(vim.fn.readfile(vim.env.AW_DAEMON_DELETE_LOG), '\n'),
+        }
+    end)()]])
+    eq(res.exists, false)
+    expect.equality(res.log:find('/launches/7', 1, true) ~= nil, true)
+end
+
 return T
