@@ -177,8 +177,10 @@ a      Prompt for title and agent, then launch a new tracked agent.
 r      Rename the selected agent (prompts for title).
 o      Open the selected agent's worktree (Neovim tab or tmux window,
        depending on |agent-watch-config-worktree-opener|).
-dd     Force-delete the selected agent's terminal buffer.
-dw     Delete the selected agent's Git worktree after confirmation.
+dd     Delete the selected agent after confirmation. Also force-deletes
+       its terminal buffer if it still exists.
+dw     Delete the selected agent's Git worktree and agent record after
+       confirmation.
        Note: removes the worktree directory, not the branch.
 q      Close the watch window.
 ?      Toggle the floating help window showing all watch-buffer keys.

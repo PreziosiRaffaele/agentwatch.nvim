@@ -122,4 +122,17 @@ function M.rename(opts, id, title, callback)
     end)
 end
 
+function M.delete(opts, id, callback)
+    local url = M.resolve_url(opts) .. '/launches/' .. encode_query(id)
+    vim.system({ 'curl', '-fsS', '--max-time', '5', '-X', 'DELETE', url }, { text = true }, function(result)
+        vim.schedule(function()
+            if result.code ~= 0 then
+                callback(vim.trim(result.stderr or result.stdout or 'agent-watchd delete failed'))
+                return
+            end
+            callback(nil)
+        end)
+    end)
+end
+
 return M

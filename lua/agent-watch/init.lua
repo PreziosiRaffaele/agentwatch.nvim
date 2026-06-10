@@ -157,14 +157,34 @@ function M.delete_agent()
         return
     end
 
-    local bufnr = rows.bufnr(row)
-    if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
-        notify('Agent terminal buffer is not valid', vim.log.levels.WARN)
+    local id = rows.id(row)
+    if not id then
+        notify('Selected agent has no id to delete', vim.log.levels.WARN)
         return
     end
 
-    vim.api.nvim_buf_delete(bufnr, { force = true })
-    watcher.refresh({ loading = false })
+    local title = rows.field(row, { 'title', 'name', 'summary' })
+    local label = title ~= '' and title or ('#' .. tostring(id))
+    local answer = vim.fn.input('Delete agent ' .. label .. '? [y/N] ')
+    answer = vim.trim(answer or ''):lower()
+    if answer ~= 'y' and answer ~= 'yes' then
+        return
+    end
+
+    local bufnr = rows.bufnr(row)
+    daemon.delete(state.opts, id, function(err)
+        if err then
+            notify('agent-watchd delete failed: ' .. err, vim.log.levels.ERROR)
+            return
+        end
+
+        if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end
+
+        notify('Deleted agent ' .. label)
+        watcher.refresh({ loading = false })
+    end)
 end
 
 function M.delete_agent_worktree()
@@ -181,7 +201,15 @@ function M.delete_agent_worktree()
         return
     end
 
-    local answer = vim.fn.input('Delete worktree ' .. path .. '? [y/N] ')
+    local id = rows.id(row)
+    if not id then
+        notify('Selected agent has no id to delete', vim.log.levels.WARN)
+        return
+    end
+
+    local title = rows.field(row, { 'title', 'name', 'summary' })
+    local label = title ~= '' and title or ('#' .. tostring(id))
+    local answer = vim.fn.input('Delete worktree ' .. path .. ' and agent ' .. label .. '? [y/N] ')
     answer = vim.trim(answer or ''):lower()
     if answer ~= 'y' and answer ~= 'yes' then
         return
@@ -194,12 +222,19 @@ function M.delete_agent_worktree()
     end
 
     local bufnr = rows.bufnr(row)
-    if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
-        vim.api.nvim_buf_delete(bufnr, { force = true })
-    end
+    daemon.delete(state.opts, id, function(err)
+        if err then
+            notify('agent-watchd delete failed: ' .. err, vim.log.levels.ERROR)
+            return
+        end
 
-    notify('Deleted worktree ' .. removed_path)
-    watcher.refresh({ loading = false })
+        if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end
+
+        notify('Deleted worktree ' .. removed_path .. ' and agent ' .. label)
+        watcher.refresh({ loading = false })
+    end)
 end
 
 function M.rename_agent(args)

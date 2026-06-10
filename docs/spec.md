@@ -72,8 +72,8 @@ Inside the `AgentWatch` buffer:
 | `a` | Prompt for title and agent type, then launch. |
 | `r` | Rename the selected agent. |
 | `o` | Open the selected agent's worktree with the configured `worktree_opener`. |
-| `dd` | Force-delete the selected agent terminal buffer. |
-| `dw` | Delete the selected agent's Git worktree after confirmation. Does not delete the branch. |
+| `dd` | Delete the selected agent after confirmation. Also force-deletes its terminal buffer if it still exists. |
+| `dw` | Delete the selected agent's Git worktree and agent record after confirmation. Does not delete the branch. |
 | `q` | Close the watch window and stop the watch process. |
 | `?` | Toggle the floating help window for the complete watch-buffer keymap. |
 
@@ -205,13 +205,22 @@ AgentWatchAttachWorktree <path> [title] [agent]
   → opens it with the configured terminal layout
   → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
 
+Watch-buffer dd
+  → reads the selected row's launch ID
+  → prompts: Delete agent <title-or-id>? [y/N]
+  → on confirmation, DELETE <daemon_url>/launches/<id>
+  → on success, force-deletes the selected terminal buffer if it still exists
+  → refreshes the watch buffer
+
 Watch-buffer dw
+  → reads the selected row's launch ID
   → reads the selected row's folder
   → verifies the folder exists and is a registered linked Git worktree
   → refuses to remove the repository main working tree
-  → prompts: Delete worktree <absolute-path>? [y/N]
+  → prompts: Delete worktree <absolute-path> and agent <title-or-id>? [y/N]
   → on confirmation, runs: git -C <absolute-path> worktree remove <absolute-path>
-  → on success, force-deletes the selected terminal buffer if it still exists
+  → on successful worktree removal, DELETE <daemon_url>/launches/<id>
+  → on successful agent deletion, force-deletes the selected terminal buffer if it still exists
   → refreshes the watch buffer
 
 AgentWatchRename <id> <title>

@@ -22,6 +22,7 @@ local T = MiniTest.new_set({
                 local f = vim.fn.tempname()
                 vim.fn.writefile({ vim.json.encode({ row }) }, f)
                 vim.env.AW_DAEMON_AGENTS_FILE = f
+                vim.env.AW_DAEMON_DELETE_LOG = vim.fn.tempname()
                 _G.watch_has = function(pat)
                     for _, b in ipairs(vim.api.nvim_list_bufs()) do
                         if vim.bo[b].filetype == 'agent-watch' then
@@ -88,6 +89,44 @@ T['q closes the watch window and stops watching'] = function()
     ]])
     child.type_keys('q')
     eq(child.lua_get([[require('agent-watch.watch_window').visible()]]), false)
+end
+
+T['dd cancels agent deletion without confirmation'] = function()
+    child.cmd('AgentWatch')
+    h.wait_for(child, "_G.watch_has('fix login')")
+
+    child.lua([[
+        for _, w in ipairs(vim.api.nvim_list_wins()) do
+            if vim.bo[vim.api.nvim_win_get_buf(w)].filetype == 'agent-watch' then
+                vim.api.nvim_set_current_win(w)
+            end
+        end
+    ]])
+    child.type_keys('dd')
+    child.type_keys('n<CR>')
+
+    eq(child.lua_get('vim.fn.filereadable(vim.env.AW_DAEMON_DELETE_LOG)'), 0)
+    eq(child.lua_get('vim.api.nvim_buf_is_valid(_G.agent_buf)'), true)
+end
+
+T['dd confirms and DELETEs the selected launch'] = function()
+    child.cmd('AgentWatch')
+    h.wait_for(child, "_G.watch_has('fix login')")
+
+    child.lua([[
+        for _, w in ipairs(vim.api.nvim_list_wins()) do
+            if vim.bo[vim.api.nvim_win_get_buf(w)].filetype == 'agent-watch' then
+                vim.api.nvim_set_current_win(w)
+            end
+        end
+    ]])
+    child.type_keys('dd')
+    child.type_keys('y<CR>')
+
+    eq(h.wait_for(child, 'vim.fn.getfsize(vim.env.AW_DAEMON_DELETE_LOG) > 0'), true)
+    local log = child.lua_get([[table.concat(vim.fn.readfile(vim.env.AW_DAEMON_DELETE_LOG), '\n')]])
+    expect.equality(log:find('/launches/1', 1, true) ~= nil, true)
+    eq(h.wait_for(child, 'not vim.api.nvim_buf_is_valid(_G.agent_buf)'), true)
 end
 
 return T

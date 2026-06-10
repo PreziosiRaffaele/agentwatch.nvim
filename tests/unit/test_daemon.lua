@@ -86,4 +86,29 @@ T['list_agents()']['reports a request failure on non-zero exit'] = function()
     expect.equality(result.err ~= nil, true)
 end
 
+T['delete()'] = MiniTest.new_set()
+
+T['delete()']['sends DELETE to the launch endpoint'] = function()
+    local original = vim.system
+    local captured = nil
+    vim.system = function(cmd, _, cb)
+        captured = cmd
+        cb({ code = 0, stdout = '{}', stderr = '' })
+        return { wait = function() end }
+    end
+
+    local result = { done = false }
+    daemon.delete({ daemon_url = 'http://x' }, '42', function(err)
+        result.err = err
+        result.done = true
+    end)
+    vim.wait(1000, function()
+        return result.done
+    end, 10)
+
+    vim.system = original
+    eq(result.err, nil)
+    eq(captured, { 'curl', '-fsS', '--max-time', '5', '-X', 'DELETE', 'http://x/launches/42' })
+end
+
 return T
