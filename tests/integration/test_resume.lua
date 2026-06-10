@@ -142,6 +142,32 @@ T['<CR> refuses to resume when the agent folder is gone'] = function()
     eq(child.lua_get('vim.fn.getfsize(vim.env.AW_LAUNCH_LOG) > 0'), false)
 end
 
+T['<CR> spares an unrelated buffer colliding with the stale bufnr'] = function()
+    child.lua([[
+        vim.env.AW_LAUNCH_LOG = vim.fn.tempname()
+        -- With a fixed --listen address a dead session's row looks owned by
+        -- this one, so its bufnr survives rows.filter and may point at any
+        -- local buffer.
+        _G.victim = vim.api.nvim_create_buf(true, false)
+        _G.exited_row.nvim_server = vim.v.servername
+        _G.exited_row.nvim_terminal_bufnr = _G.victim
+        _G.write_agents(_G.exited_row)
+    ]])
+    child.cmd('AgentWatch')
+    h.wait_for(child, "_G.watch_has('fix login')")
+
+    child.lua('_G.select_row(2)')
+    child.type_keys('<CR>')
+    eq(
+        h.wait_for(
+            child,
+            'vim.fn.filereadable(vim.env.AW_LAUNCH_LOG) == 1 and vim.fn.getfsize(vim.env.AW_LAUNCH_LOG) > 0'
+        ),
+        true
+    )
+    eq(child.lua_get('vim.api.nvim_buf_is_valid(_G.victim)'), true)
+end
+
 T['dd on an exited row deletes the daemon record after confirmation'] = function()
     child.lua([[
         vim.env.AW_DAEMON_DELETE_LOG = vim.fn.tempname()

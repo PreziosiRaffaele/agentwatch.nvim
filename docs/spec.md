@@ -219,7 +219,7 @@ Resume selected agent (<CR> on exited row)
   → opens it with the configured terminal layout
   → starts terminal job: aw resume <id> --nvim-server <addr> --nvim-bufnr <bufnr>
   → the daemon re-attaches the record to this session; the resumed terminal becomes the latest-agent toggle target
-  → deletes the row's stale terminal buffer when this session launched it
+  → deletes the row's stale terminal buffer only when it is an agent terminal whose job exited
 
 Watch-buffer dd
   → reads the selected row's launch ID

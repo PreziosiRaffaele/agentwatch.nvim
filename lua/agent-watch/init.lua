@@ -146,6 +146,19 @@ function M.toggle_latest()
     open_daemon_latest()
 end
 
+-- True only for a terminal buffer this plugin created whose job is gone.
+-- A row's bufnr cannot be trusted on its own: with a fixed --listen address
+-- an exited row from a dead session looks owned by this one, and its bufnr
+-- may collide with any local buffer.
+local function dead_agent_terminal(bufnr)
+    if not vim.api.nvim_buf_is_valid(bufnr) or vim.b[bufnr].agent_watch_title == nil then
+        return false
+    end
+
+    local job = vim.b[bufnr].terminal_job_id
+    return job == nil or vim.fn.jobwait({ job }, 0)[1] ~= -1
+end
+
 local function resume_agent(row)
     local id = rows.id(row)
     if not id then
@@ -174,10 +187,9 @@ local function resume_agent(row)
         return
     end
 
-    -- rows.filter clears the bufnr unless this session owns the row, so a
-    -- surviving bufnr is the local terminal left over from the exited agent.
+    -- Clean up the terminal this session left behind for the exited agent.
     local stale_bufnr = rows.bufnr(row)
-    if stale_bufnr and vim.api.nvim_buf_is_valid(stale_bufnr) then
+    if stale_bufnr and dead_agent_terminal(stale_bufnr) then
         vim.api.nvim_buf_delete(stale_bufnr, { force = true })
     end
 
