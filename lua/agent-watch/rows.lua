@@ -127,8 +127,16 @@ end
 function M.filter(rows, server, project_root)
     local filtered = {}
     for _, row in ipairs(rows) do
-        if type(row) == 'table' and (owned(row, server) or adoptable(row, project_root)) then
-            table.insert(filtered, row)
+        if type(row) == 'table' then
+            if owned(row, server) then
+                table.insert(filtered, row)
+            elseif adoptable(row, project_root) then
+                -- A bufnr from a dead session may collide with an unrelated
+                -- buffer in this process; clear it so no action treats it as
+                -- local.
+                row.nvim_terminal_bufnr = nil
+                table.insert(filtered, row)
+            end
         end
     end
     table.sort(filtered, function(a, b)

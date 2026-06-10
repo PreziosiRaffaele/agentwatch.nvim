@@ -174,11 +174,10 @@ local function resume_agent(row)
         return
     end
 
-    -- The exited row's own terminal buffer is only meaningful when this
-    -- session launched it; a bufnr from a dead session may collide with an
-    -- unrelated local buffer.
+    -- rows.filter clears the bufnr unless this session owns the row, so a
+    -- surviving bufnr is the local terminal left over from the exited agent.
     local stale_bufnr = rows.bufnr(row)
-    if row.nvim_server == nvim_server and stale_bufnr and vim.api.nvim_buf_is_valid(stale_bufnr) then
+    if stale_bufnr and vim.api.nvim_buf_is_valid(stale_bufnr) then
         vim.api.nvim_buf_delete(stale_bufnr, { force = true })
     end
 

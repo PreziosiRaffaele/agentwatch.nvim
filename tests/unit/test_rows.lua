@@ -66,6 +66,19 @@ T['filter()']['adopts exited project rows regardless of server and buffer'] = fu
     local out = rows.filter(input, 'srv', '/proj')
     eq(#out, 1)
     eq(out[1].id, 3)
+    -- The dead session's bufnr could collide with a local buffer.
+    eq(out[1].nvim_terminal_bufnr, nil)
+end
+
+T['filter()']['keeps the bufnr of exited rows owned by this session'] = function()
+    local buf = vim.api.nvim_create_buf(false, true)
+    local input = {
+        { id = 3, state = 'exited', project_root = '/proj', nvim_server = 'srv', nvim_terminal_bufnr = buf },
+    }
+    local out = rows.filter(input, 'srv', '/proj')
+    eq(#out, 1)
+    eq(out[1].nvim_terminal_bufnr, buf)
+    vim.api.nvim_buf_delete(buf, { force = true })
 end
 
 T['filter()']['ignores exited rows without a project root to match'] = function()

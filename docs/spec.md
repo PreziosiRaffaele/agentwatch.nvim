@@ -22,7 +22,7 @@ The plugin communicates with `agent-watchd` using two channels:
 - A bottom scratch buffer (`botright split`) showing agents attached to the current Neovim server, plus resumable `exited` agents from the same project.
 - Each poll performs a single unfiltered `GET /agents` request and partitions the rows client-side. A row is kept when either:
   - its `nvim_server` matches the current server and its terminal buffer is valid (owned rows); or
-  - its `state` is `exited` and its `project_root` matches the local project root (adoptable rows) — kept regardless of `nvim_server` and without a terminal-buffer validity check, since the buffer belongs to a dead session.
+  - its `state` is `exited` and its `project_root` matches the local project root (adoptable rows) — kept regardless of `nvim_server` and without a terminal-buffer validity check, since the buffer belongs to a dead session. Their stale `nvim_terminal_bufnr` is cleared when kept, so buffer actions can never mistake it for a local buffer.
 - The plugin uses the existing `vim.v.servername` when Neovim already has a server address; otherwise it starts one with `vim.fn.serverstart()` and uses the returned address.
 - The project root is the same project identity `agent-watchd` stores in `project_root`: inside a Git repository, the repository main working tree (parent directory of `git rev-parse --path-format=absolute --git-common-dir`, so linked worktrees group with their repository); outside a Git repository, the cwd itself. It is resolved once per watch session, like the server address.
 - Kept rows are sorted by launch ID ascending.
