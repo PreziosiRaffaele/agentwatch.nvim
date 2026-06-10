@@ -115,7 +115,7 @@ local function open_daemon_latest()
         return
     end
 
-    daemon.list_agents(state.opts, nvim_server, function(agent_rows, err)
+    daemon.list_agents(state.opts, function(agent_rows, err)
         if err then
             notify('agent-watchd request failed: ' .. err, vim.log.levels.ERROR)
             return
@@ -146,9 +146,54 @@ function M.toggle_latest()
     open_daemon_latest()
 end
 
+local function resume_agent(row)
+    local id = rows.id(row)
+    if not id then
+        notify('Selected agent has no id to resume', vim.log.levels.WARN)
+        return
+    end
+
+    local folder = rows.field(row, { 'folder' })
+    if folder == '' or vim.fn.isdirectory(folder) ~= 1 then
+        notify('Agent folder no longer exists: ' .. folder, vim.log.levels.WARN)
+        return
+    end
+
+    local nvim_server = server.ensure()
+    if not nvim_server then
+        return
+    end
+
+    local bufnr = terminal.resume(state.opts, nvim_server, {
+        id = id,
+        title = rows.field(row, { 'title', 'name', 'summary' }),
+        agent = rows.field(row, { 'agent', 'agent_type', 'type' }),
+        folder = folder,
+    })
+    if not bufnr then
+        return
+    end
+
+    -- The exited row's own terminal buffer is only meaningful when this
+    -- session launched it; a bufnr from a dead session may collide with an
+    -- unrelated local buffer.
+    local stale_bufnr = rows.bufnr(row)
+    if row.nvim_server == nvim_server and stale_bufnr and vim.api.nvim_buf_is_valid(stale_bufnr) then
+        vim.api.nvim_buf_delete(stale_bufnr, { force = true })
+    end
+
+    remember_latest(bufnr)
+    watcher.refresh({ loading = false })
+end
+
 function M.jump_to_agent()
     local row = window.selected_row()
     if not row then
+        return
+    end
+
+    if rows.is_exited(row) then
+        resume_agent(row)
         return
     end
 
@@ -162,9 +207,36 @@ function M.jump_to_agent()
     remember_latest(bufnr)
 end
 
+local function discard_exited_agent(row)
+    local id = rows.id(row)
+    if not id then
+        notify('Selected agent has no id to discard', vim.log.levels.WARN)
+        return
+    end
+
+    local title = rows.field(row, { 'title', 'name', 'summary' })
+    local label = title ~= '' and title or ('launch ' .. id)
+    confirm('Discard exited agent ' .. label .. '? [y/N] ', function()
+        daemon.delete_launch(state.opts, id, function(err)
+            if err then
+                notify('agent-watchd delete failed: ' .. err, vim.log.levels.ERROR)
+                return
+            end
+
+            notify('Discarded exited agent ' .. label)
+            watcher.refresh({ loading = false })
+        end)
+    end)
+end
+
 function M.delete_agent()
     local row = window.selected_row()
     if not row then
+        return
+    end
+
+    if rows.is_exited(row) then
+        discard_exited_agent(row)
         return
     end
 
@@ -221,6 +293,17 @@ function M.delete_agent_worktree()
         local removed_path, remove_err = worktree.remove(path)
         if remove_err then
             notify('git worktree remove failed: ' .. remove_err, vim.log.levels.ERROR)
+            return
+        end
+
+        if rows.is_exited(row) then
+            daemon.delete_launch(state.opts, id, function(delete_err)
+                if delete_err then
+                    notify('agent-watchd delete failed: ' .. delete_err, vim.log.levels.ERROR)
+                end
+                notify('Deleted worktree ' .. removed_path)
+                watcher.refresh({ loading = false })
+            end)
             return
         end
 

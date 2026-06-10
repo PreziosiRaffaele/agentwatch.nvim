@@ -108,6 +108,38 @@ function M.open(opts, bufnr)
     M.open_float(opts, bufnr)
 end
 
+-- Opens a new terminal with the configured layout and starts the `aw` job
+-- built by `build_parts(bufnr)` in it. Returns the buffer, or nil on failure.
+local function open_terminal_job(opts, title, agent, cwd, build_parts)
+    local bufnr = vim.api.nvim_create_buf(false, true)
+    vim.b[bufnr].agent_watch_title = title
+    vim.b[bufnr].agent_watch_agent = agent
+
+    vim.api.nvim_create_autocmd('TermOpen', {
+        buffer = bufnr,
+        once = true,
+        callback = function()
+            set_buffer_name(bufnr)
+        end,
+    })
+
+    M.open(opts, bufnr)
+    local jobstart_opts = { term = true }
+    if cwd then
+        jobstart_opts.cwd = cwd
+    end
+    local job_id = vim.fn.jobstart(build_parts(bufnr), jobstart_opts)
+
+    if type(job_id) ~= 'number' or job_id <= 0 then
+        notify('Could not start terminal for agent launch', vim.log.levels.ERROR)
+        vim.api.nvim_win_close(0, false)
+        return nil
+    end
+
+    vim.cmd('startinsert')
+    return bufnr
+end
+
 function M.launch(opts, server, args, cwd)
     args = args or {}
     local title = args[1]
@@ -127,44 +159,34 @@ function M.launch(opts, server, args, cwd)
         return
     end
 
-    local bufnr = vim.api.nvim_create_buf(false, true)
-    vim.b[bufnr].agent_watch_title = title
-    vim.b[bufnr].agent_watch_agent = agent
+    return open_terminal_job(opts, title, agent, cwd, function(bufnr)
+        return {
+            opts.cli,
+            agent,
+            '--title',
+            title,
+            '--nvim-server',
+            server,
+            '--nvim-bufnr',
+            bufnr,
+        }
+    end)
+end
 
-    local parts = {
-        opts.cli,
-        agent,
-        '--title',
-        title,
-        '--nvim-server',
-        server,
-        '--nvim-bufnr',
-        bufnr,
-    }
-
-    vim.api.nvim_create_autocmd('TermOpen', {
-        buffer = bufnr,
-        once = true,
-        callback = function()
-            set_buffer_name(bufnr)
-        end,
-    })
-
-    M.open(opts, bufnr)
-    local jobstart_opts = { term = true }
-    if cwd then
-        jobstart_opts.cwd = cwd
-    end
-    local job_id = vim.fn.jobstart(parts, jobstart_opts)
-
-    if type(job_id) ~= 'number' or job_id <= 0 then
-        notify('Could not start terminal for agent launch', vim.log.levels.ERROR)
-        vim.api.nvim_win_close(0, false)
-        return nil
-    end
-
-    vim.cmd('startinsert')
-    return bufnr
+-- Relaunches an exited daemon record (`resume` = { id, title, agent, folder })
+-- in its original folder and re-attaches it to this Neovim session.
+function M.resume(opts, server, resume)
+    return open_terminal_job(opts, resume.title, resume.agent, resume.folder, function(bufnr)
+        return {
+            opts.cli,
+            'resume',
+            resume.id,
+            '--nvim-server',
+            server,
+            '--nvim-bufnr',
+            bufnr,
+        }
+    end)
 end
 
 return M

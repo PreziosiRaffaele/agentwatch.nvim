@@ -5,7 +5,7 @@
 #
 #   AW_DAEMON_AGENTS_FILE  file whose contents are returned for GET /agents
 #   AW_DAEMON_PATCH_LOG    PATCH requests are appended as "<url>\t<body>"
-#   AW_DAEMON_DELETE_LOG   DELETE request URLs are appended
+#   AW_DAEMON_DELETE_LOG   DELETE request URLs are appended one per line
 #   AW_DAEMON_FAIL         when set, exit non-zero to exercise the error path
 
 method=GET
@@ -26,6 +26,14 @@ done
 if [ -n "$AW_DAEMON_FAIL" ]; then
     echo "curl: (22) simulated agent-watchd failure" >&2
     exit 22
+fi
+
+if [ "$method" = "DELETE" ]; then
+    if [ -n "$AW_DAEMON_DELETE_LOG" ]; then
+        printf '%s\n' "$url" >>"$AW_DAEMON_DELETE_LOG"
+    fi
+    printf '{"ok":true}'
+    exit 0
 fi
 
 if [ "$method" = "PATCH" ]; then

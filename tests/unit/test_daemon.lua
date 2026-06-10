@@ -41,7 +41,7 @@ local function list_with_stdout(stdout, code)
     end
 
     local result = { done = false }
-    daemon.list_agents({ daemon_url = 'http://x' }, 'srv', function(parsed_rows, err)
+    daemon.list_agents({ daemon_url = 'http://x' }, function(parsed_rows, err)
         result.rows = parsed_rows
         result.err = err
         result.done = true
@@ -110,5 +110,43 @@ T['delete()']['sends DELETE to the launch endpoint'] = function()
     eq(result.err, nil)
     eq(captured, { 'curl', '-fsS', '--max-time', '5', '-X', 'DELETE', 'http://x/launches/42' })
 end
+
+T['delete_launch()'] = MiniTest.new_set()
+
+local function delete_with_result(code)
+    local original = vim.system
+    local captured = {}
+    vim.system = function(cmd, _, cb)
+        captured.cmd = cmd
+        cb({ code = code, stdout = '', stderr = code ~= 0 and 'boom' or '' })
+        return { wait = function() end }
+    end
+
+    local result = { done = false }
+    daemon.delete_launch({ daemon_url = 'http://x' }, '7', function(err)
+        result.err = err
+        result.done = true
+    end)
+    vim.wait(1000, function()
+        return result.done
+    end, 10)
+
+    vim.system = original
+    result.cmd = captured.cmd
+    return result
+end
+
+T['delete_launch()']['issues DELETE /launches/:id and reports success'] = function()
+    local result = delete_with_result(0)
+    eq(result.err, nil)
+    eq(result.cmd[#result.cmd], 'http://x/launches/7')
+    eq(vim.list_contains(result.cmd, 'DELETE'), true)
+end
+
+T['delete_launch()']['reports a request failure on non-zero exit'] = function()
+    local result = delete_with_result(22)
+    eq(result.err, 'boom')
+end
+
 
 return T

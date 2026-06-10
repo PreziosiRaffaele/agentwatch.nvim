@@ -10,8 +10,8 @@ It displays live agent state from `agent-watchd` and lets the user launch, renam
 
 The plugin communicates with `agent-watchd` using two channels:
 
-- **HTTP API** (direct): agent listing (`GET /agents`) and renaming (`PATCH /launches/:id`) go straight to `agent-watchd`. The daemon URL is resolved from the `daemon_url` plugin option when set, otherwise from the healthy `~/.agent-watch/daemon.json` state file written by `agent-watchd`, and finally from the default `http://127.0.0.1:3847`. 
-- **`aw` CLI**: launching agents. `aw <agent>` is the only operation routed through the CLI — it handles daemon startup and launch registration.
+- **HTTP API** (direct): agent listing (`GET /agents`, unfiltered — all row filtering happens client-side), renaming (`PATCH /launches/:id`), and discarding exited records (`DELETE /launches/:id`) go straight to `agent-watchd`. The daemon URL is resolved from the `daemon_url` plugin option when set, otherwise from the healthy `~/.agent-watch/daemon.json` state file written by `agent-watchd`, and finally from the default `http://127.0.0.1:3847`. 
+- **`aw` CLI**: launching and resuming agents. `aw <agent>` and `aw resume <id>` are the only operations routed through the CLI — they handle daemon startup and launch registration.
 
 ---
 
@@ -19,9 +19,13 @@ The plugin communicates with `agent-watchd` using two channels:
 
 **Watch buffer**
 
-- A bottom scratch buffer (`botright split`) showing agents attached to the current Neovim server, including exited agents whose terminal buffer is no longer live.
-- Filtered by `nvim_server` by calling `GET /agents?nvim_server=<current-server>`. The plugin uses the existing `vim.v.servername` when Neovim already has a server address; otherwise it starts one with `vim.fn.serverstart()` and uses the returned address. The plugin also keeps a local exact `row.nvim_server == current_server` check after parsing the response as a compatibility guard.
-- Opening an agent terminal requires a valid, loaded terminal buffer; rows whose terminal buffer is gone remain visible but cannot be opened with `<CR>` or `AgentWatchToggleLatest`.
+- A bottom scratch buffer (`botright split`) showing agents attached to the current Neovim server, plus resumable `exited` agents from the same project.
+- Each poll performs a single unfiltered `GET /agents` request and partitions the rows client-side. A row is kept when either:
+  - its `nvim_server` matches the current server and its terminal buffer is valid (owned rows); or
+  - its `state` is `exited` and its `project_root` matches the local project root (adoptable rows) — kept regardless of `nvim_server` and without a terminal-buffer validity check, since the buffer belongs to a dead session.
+- The plugin uses the existing `vim.v.servername` when Neovim already has a server address; otherwise it starts one with `vim.fn.serverstart()` and uses the returned address.
+- The project root is the same project identity `agent-watchd` stores in `project_root`: inside a Git repository, the repository main working tree (parent directory of `git rev-parse --path-format=absolute --git-common-dir`, so linked worktrees group with their repository); outside a Git repository, the cwd itself. It is resolved once per watch session, like the server address.
+- Kept rows are sorted by launch ID ascending.
 - Visible columns are `TITLE`, `STATE`, `AGENT`, `UPDATED`, and `BRANCH`.
 - The `STATE` column is highlighted with plugin-owned highlight groups linked to standard Neovim groups, so colors come from the user's active colorscheme.
 - Updated by polling the filtered daemon endpoint at `watch_interval` ms while the window is visible. Polling stops when the window closes.
@@ -68,12 +72,12 @@ Inside the `AgentWatch` buffer:
 
 | Key | Action |
 | --- | --- |
-| `<CR>` | Open the selected agent terminal with the configured terminal layout. |
+| `<CR>` | Open the selected agent terminal with the configured terminal layout. On an `exited` row, resume the agent instead. |
 | `a` | Prompt for title and agent type, then launch. |
 | `r` | Rename the selected agent. |
 | `o` | Open the selected agent's worktree with the configured `worktree_opener`. |
-| `dd` | Delete the selected agent after confirmation. Also force-deletes its terminal buffer if it still exists. |
-| `dw` | Delete the selected agent's Git worktree and agent record after confirmation. Does not delete the branch. |
+| `dd` | Delete the selected agent after confirmation. Also force-deletes its terminal buffer if it still exists. On an `exited` row, discards the daemon record. |
+| `dw` | Delete the selected agent's Git worktree and agent record after confirmation. Does not delete the branch. Discards the daemon record of an `exited` row. |
 | `q` | Close the watch window and stop the watch process. |
 | `?` | Toggle the floating help window for the complete watch-buffer keymap. |
 
@@ -166,14 +170,17 @@ vim.api.nvim_set_hl(0, 'AgentWatchStateRunning', { link = 'String' })
 ```text
 AgentWatch / AgentWatchToggle
   → ensures Neovim server is running
+  → resolves the project root from Neovim's cwd (main worktree root, or the cwd outside a Git repo)
   → resolves daemon URL from daemon_url, ~/.agent-watch/daemon.json, or default localhost
-  → polls: GET <daemon_url>/agents?nvim_server=<addr>
+  → polls: GET <daemon_url>/agents
+  → keeps rows owned by this Neovim server (server match + valid terminal buffer)
+    and exited rows whose project_root matches the local project root
 
 AgentWatchToggleLatest
   → closes the last launched/opened agent terminal when it is visible
   → otherwise reopens the last launched/opened terminal with the configured layout
-  → if local latest state is invalid, fetches GET <daemon_url>/agents?nvim_server=<addr>
-  → chooses the valid row with the highest launch ID and opens it
+  → if local latest state is invalid, fetches GET <daemon_url>/agents
+  → chooses the valid row owned by this Neovim server with the highest launch ID and opens it
 
 AgentWatchLaunch <title> [agent]
   → ensures Neovim server is running
@@ -205,11 +212,25 @@ AgentWatchAttachWorktree <path> [title] [agent]
   → opens it with the configured terminal layout
   → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
 
+Resume selected agent (<CR> on exited row)
+  → verifies the row's folder still exists and is a directory; errors otherwise
+  → ensures Neovim server is running
+  → creates a hidden terminal buffer with cwd set to the row's folder
+  → opens it with the configured terminal layout
+  → starts terminal job: aw resume <id> --nvim-server <addr> --nvim-bufnr <bufnr>
+  → the daemon re-attaches the record to this session; the resumed terminal becomes the latest-agent toggle target
+  → deletes the row's stale terminal buffer when this session launched it
+
 Watch-buffer dd
   → reads the selected row's launch ID
   → prompts: Delete agent <title-or-id>? [y/N]
   → on confirmation, DELETE <daemon_url>/launches/<id>
   → on success, force-deletes the selected terminal buffer if it still exists
+  → refreshes the watch buffer
+
+Watch-buffer dd on exited row
+  → prompts: Discard exited agent <title>? [y/N]
+  → on confirmation: DELETE <daemon_url>/launches/<id>
   → refreshes the watch buffer
 
 Watch-buffer dw
@@ -221,6 +242,7 @@ Watch-buffer dw
   → on confirmation, runs: git -C <absolute-path> worktree remove <absolute-path>
   → on successful worktree removal, DELETE <daemon_url>/launches/<id>
   → on successful agent deletion, force-deletes the selected terminal buffer if it still exists
+  → for an exited row, discards the record via DELETE <daemon_url>/launches/<id> without buffer cleanup
   → refreshes the watch buffer
 
 AgentWatchRename <id> <title>

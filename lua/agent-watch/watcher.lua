@@ -10,6 +10,7 @@ local state = {
     timer = nil,
     request_running = false,
     server = nil,
+    project_root = nil,
 }
 
 local function stop_timer()
@@ -31,6 +32,7 @@ function M.stop()
     stop_timer()
     state.request_running = false
     state.server = nil
+    state.project_root = nil
 end
 
 local function render_list(open, loading)
@@ -39,12 +41,14 @@ local function render_list(open, loading)
         return
     end
 
+    state.project_root = state.project_root or require('agent-watch.worktree').project_root()
+
     state.request_running = true
     if loading ~= false then
         window.set_lines({ 'Loading agents...' }, {}, { open = open })
     end
 
-    daemon.list_agents(state.opts, state.server, function(agent_rows, err)
+    daemon.list_agents(state.opts, function(agent_rows, err)
         state.request_running = false
 
         if not open and not window.visible() then
@@ -57,7 +61,7 @@ local function render_list(open, loading)
             return
         end
 
-        local lines, rows_by_line, state_ranges = rows.render(rows.filter(agent_rows, state.server))
+        local lines, rows_by_line, state_ranges = rows.render(rows.filter(agent_rows, state.server, state.project_root))
         window.set_lines(lines, rows_by_line, { open = open, state_ranges = state_ranges })
     end)
 end

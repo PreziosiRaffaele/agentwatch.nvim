@@ -103,13 +103,37 @@ function M.id(row)
     return tostring(id)
 end
 
-function M.filter(rows, server)
+function M.is_exited(row)
+    return type(row) == 'table' and M.field(row, { 'state', 'status' }) == 'exited'
+end
+
+local function owned(row, server)
+    if row.nvim_server ~= server then
+        return false
+    end
+    local bufnr = M.bufnr(row)
+    return bufnr ~= nil and vim.api.nvim_buf_is_valid(bufnr)
+end
+
+-- Exited rows have no live owner: their nvim_server points at a dead session,
+-- so any Neovim session in the same project may adopt (resume) them.
+local function adoptable(row, project_root)
+    if not project_root or project_root == '' then
+        return false
+    end
+    return M.is_exited(row) and row.project_root == project_root
+end
+
+function M.filter(rows, server, project_root)
     local filtered = {}
     for _, row in ipairs(rows) do
-        if type(row) == 'table' and row.nvim_server == server then
+        if type(row) == 'table' and (owned(row, server) or adoptable(row, project_root)) then
             table.insert(filtered, row)
         end
     end
+    table.sort(filtered, function(a, b)
+        return (tonumber(M.id(a)) or math.huge) < (tonumber(M.id(b)) or math.huge)
+    end)
     return filtered
 end
 
@@ -119,7 +143,7 @@ function M.render(rows)
     local state_ranges = {}
 
     if #rows == 0 then
-        table.insert(lines, 'No agents for this Neovim server.')
+        table.insert(lines, 'No agents for this Neovim server or project.')
         return lines, rows_by_line, state_ranges
     end
 

@@ -34,6 +34,18 @@ function M.repo_root()
     return vim.trim(result[1]):match('^worktree (.+)$')
 end
 
+-- Project identity shared with agent-watchd: the repository main working tree
+-- (parent of the common git dir, so linked worktrees group with their repo),
+-- or the cwd itself outside a Git repository.
+function M.project_root()
+    local cwd = vim.uv.cwd() or '.'
+    local output, err = git_output(cwd, { 'rev-parse', '--path-format=absolute', '--git-common-dir' })
+    if err or not output or vim.trim(output) == '' then
+        return cwd
+    end
+    return vim.fn.fnamemodify(vim.trim(output), ':h')
+end
+
 function M.branch_slug(branch)
     return vim.trim(branch):gsub('[^A-Za-z0-9._]+', '-')
 end

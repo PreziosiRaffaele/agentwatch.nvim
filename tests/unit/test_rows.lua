@@ -57,12 +57,51 @@ T['filter()']['keeps matching server rows even without a valid buffer'] = functi
     vim.api.nvim_buf_delete(buf, { force = true })
 end
 
+T['filter()']['adopts exited project rows regardless of server and buffer'] = function()
+    local input = {
+        { id = 3, state = 'exited', project_root = '/proj', nvim_server = 'dead', nvim_terminal_bufnr = 999999 },
+        { id = 4, state = 'exited', project_root = '/elsewhere', nvim_server = 'dead' },
+        { id = 5, state = 'working', project_root = '/proj', nvim_server = 'dead', nvim_terminal_bufnr = 999999 },
+    }
+    local out = rows.filter(input, 'srv', '/proj')
+    eq(#out, 1)
+    eq(out[1].id, 3)
+end
+
+T['filter()']['ignores exited rows without a project root to match'] = function()
+    local input = { { id = 3, state = 'exited', project_root = '/proj', nvim_server = 'dead' } }
+    eq(#rows.filter(input, 'srv'), 0)
+    eq(#rows.filter(input, 'srv', ''), 0)
+end
+
+T['filter()']['sorts kept rows by launch id ascending'] = function()
+    local buf = vim.api.nvim_create_buf(false, true)
+    local input = {
+        { id = 9, state = 'exited', project_root = '/proj', nvim_server = 'dead' },
+        { id = 2, nvim_server = 'srv', nvim_terminal_bufnr = buf },
+        { id = 7, state = 'exited', project_root = '/proj', nvim_server = 'dead' },
+    }
+    local out = rows.filter(input, 'srv', '/proj')
+    eq({ out[1].id, out[2].id, out[3].id }, { 2, 7, 9 })
+    vim.api.nvim_buf_delete(buf, { force = true })
+end
+
+T['is_exited()'] = MiniTest.new_set()
+
+T['is_exited()']['matches only the exited state'] = function()
+    eq(rows.is_exited({ state = 'exited' }), true)
+    eq(rows.is_exited({ status = 'exited' }), true)
+    eq(rows.is_exited({ state = 'working' }), false)
+    eq(rows.is_exited({}), false)
+    eq(rows.is_exited('not a table'), false)
+end
+
 T['render()'] = MiniTest.new_set()
 
 T['render()']['shows a placeholder when there are no rows'] = function()
     local lines = rows.render({})
     eq(#lines, 1)
-    eq(lines[1], 'No agents for this Neovim server.')
+    eq(lines[1], 'No agents for this Neovim server or project.')
 end
 
 T['render()']['emits a header and a dash for missing fields'] = function()
