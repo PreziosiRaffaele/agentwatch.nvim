@@ -72,12 +72,12 @@ return {
 
 ## Workflows
 
-**Watch active agents from Neovim**
+**Watch agents from Neovim**
 
 Run `:AgentWatch` to open a bottom scratch buffer with the agents attached to the
-current Neovim server. The view refreshes while it is visible and filters out
-agents from other Neovim sessions, so the list stays focused on the workspace
-you are editing.
+current Neovim server, including exited agents whose terminal buffer is gone. The
+view refreshes while it is visible and filters out agents from other Neovim
+sessions, so the list stays focused on the workspace you are editing.
 
 **Launch an agent without leaving the editor**
 

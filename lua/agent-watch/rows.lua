@@ -107,10 +107,7 @@ function M.filter(rows, server)
     local filtered = {}
     for _, row in ipairs(rows) do
         if type(row) == 'table' and row.nvim_server == server then
-            local bufnr = M.bufnr(row)
-            if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
-                table.insert(filtered, row)
-            end
+            table.insert(filtered, row)
         end
     end
     return filtered
@@ -122,7 +119,7 @@ function M.render(rows)
     local state_ranges = {}
 
     if #rows == 0 then
-        table.insert(lines, 'No active agents for this Neovim server.')
+        table.insert(lines, 'No agents for this Neovim server.')
         return lines, rows_by_line, state_ranges
     end
 

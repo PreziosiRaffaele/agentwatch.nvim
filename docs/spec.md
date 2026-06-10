@@ -19,9 +19,9 @@ The plugin communicates with `agent-watchd` using two channels:
 
 **Watch buffer**
 
-- A bottom scratch buffer (`botright split`) showing agents attached to the current Neovim server.
+- A bottom scratch buffer (`botright split`) showing agents attached to the current Neovim server, including exited agents whose terminal buffer is no longer live.
 - Filtered by `nvim_server` by calling `GET /agents?nvim_server=<current-server>`. The plugin uses the existing `vim.v.servername` when Neovim already has a server address; otherwise it starts one with `vim.fn.serverstart()` and uses the returned address. The plugin also keeps a local exact `row.nvim_server == current_server` check after parsing the response as a compatibility guard.
-- Rows with an invalid terminal buffer are excluded from the view.
+- Opening an agent terminal requires a valid, loaded terminal buffer; rows whose terminal buffer is gone remain visible but cannot be opened with `<CR>` or `AgentWatchToggleLatest`.
 - Visible columns are `TITLE`, `STATE`, `AGENT`, `UPDATED`, and `BRANCH`.
 - The `STATE` column is highlighted with plugin-owned highlight groups linked to standard Neovim groups, so colors come from the user's active colorscheme.
 - Updated by polling the filtered daemon endpoint at `watch_interval` ms while the window is visible. Polling stops when the window closes.
