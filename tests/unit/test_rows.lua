@@ -40,17 +40,20 @@ end
 
 T['filter()'] = MiniTest.new_set()
 
-T['filter()']['keeps only matching server rows with a valid buffer'] = function()
+T['filter()']['keeps matching server rows even without a valid buffer'] = function()
     local buf = vim.api.nvim_create_buf(false, true)
     local input = {
         { nvim_server = 'srv', nvim_terminal_bufnr = buf, title = 'keep' },
         { nvim_server = 'other', nvim_terminal_bufnr = buf, title = 'wrong server' },
         { nvim_server = 'srv', nvim_terminal_bufnr = 999999, title = 'dead buffer' },
+        { nvim_server = 'srv', title = 'missing buffer' },
         'not a table',
     }
     local out = rows.filter(input, 'srv')
-    eq(#out, 1)
+    eq(#out, 3)
     eq(out[1].title, 'keep')
+    eq(out[2].title, 'dead buffer')
+    eq(out[3].title, 'missing buffer')
     vim.api.nvim_buf_delete(buf, { force = true })
 end
 
@@ -59,7 +62,7 @@ T['render()'] = MiniTest.new_set()
 T['render()']['shows a placeholder when there are no rows'] = function()
     local lines = rows.render({})
     eq(#lines, 1)
-    eq(lines[1], 'No active agents for this Neovim server.')
+    eq(lines[1], 'No agents for this Neovim server.')
 end
 
 T['render()']['emits a header and a dash for missing fields'] = function()

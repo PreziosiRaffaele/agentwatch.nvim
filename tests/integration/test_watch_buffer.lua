@@ -9,8 +9,8 @@ local T = MiniTest.new_set({
         pre_case = function()
             h.restart(child)
             h.setup(child)
-            -- A real buffer + the live server address so a daemon row passes
-            -- rows.filter (matching server, valid buffer).
+            -- A real buffer + the live server address so actions that open or
+            -- delete terminal buffers can exercise the normal path.
             child.lua([[
                 _G.agent_buf = vim.api.nvim_create_buf(false, true)
                 local row = {
@@ -48,6 +48,22 @@ T['AgentWatch renders the filtered daemon rows'] = function()
     local lines = h.watch_lines(child)
     expect.equality(lines[1]:match('^TITLE') ~= nil, true)
     expect.equality(h.watch_lines(child)[2]:find('working', 1, true) ~= nil, true)
+end
+
+T['AgentWatch renders exited rows whose terminal buffer is gone'] = function()
+    child.lua([[
+        local row = {
+            id = 2, title = 'finished task', state = 'exited', agent = 'codex',
+            branch = 'main', folder = '/tmp/x',
+            nvim_server = vim.v.servername,
+            nvim_terminal_bufnr = 999999,
+        }
+        vim.fn.writefile({ vim.json.encode({ row }) }, vim.env.AW_DAEMON_AGENTS_FILE)
+    ]])
+
+    child.cmd('AgentWatch')
+    eq(h.wait_for(child, "_G.watch_has('finished task')"), true)
+    eq(h.wait_for(child, "_G.watch_has('exited')"), true)
 end
 
 T['AgentWatch highlights the STATE column'] = function()

@@ -61,7 +61,7 @@ With lazy.nvim: >lua
 USAGE                                                      *agent-watch-usage*
 
 Open the watch buffer to see all agents attached to the current Neovim
-server: >
+server, including exited agents whose terminal buffer is gone: >
 
     :AgentWatch
 <
@@ -114,7 +114,8 @@ COMMANDS                                              *agent-watch-commands*
 
     Toggle the latest launched or opened agent terminal. Closes the
     terminal when it is visible, reopens it when hidden. Falls back to
-    the highest-ID agent from the daemon if local state is invalid.
+    the highest-ID daemon row with a valid terminal buffer if local
+    state is invalid.
 
                                                       *:AgentWatchLaunch*
 :AgentWatchLaunch {title} [{agent}]
@@ -172,7 +173,8 @@ Watch buffer mappings~                        *agent-watch-watch-mappings*
 These mappings are active only inside the |:AgentWatch| buffer.
 
 Key    Action ~
-<CR>   Jump to the selected agent's terminal buffer.
+<CR>   Jump to the selected agent's terminal buffer when it is still
+       available.
 a      Prompt for title and agent, then launch a new tracked agent.
 r      Rename the selected agent (prompts for title).
 o      Open the selected agent's worktree (Neovim tab or tmux window,

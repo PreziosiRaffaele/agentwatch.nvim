@@ -142,8 +142,8 @@ function M.jump_to_agent()
     end
 
     local bufnr = rows.bufnr(row)
-    if not bufnr or not vim.api.nvim_buf_is_loaded(bufnr) then
-        notify('Agent terminal buffer is not loaded', vim.log.levels.WARN)
+    if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) or not vim.api.nvim_buf_is_loaded(bufnr) then
+        notify('Agent terminal buffer is not available', vim.log.levels.WARN)
         return
     end
 
@@ -263,7 +263,7 @@ function M.rename_agent(args)
             end
 
             local bufnr = rows.bufnr(row)
-            if bufnr then
+            if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
                 vim.b[bufnr].agent_watch_title = title
                 terminal.refresh_bufname(bufnr)
             end
