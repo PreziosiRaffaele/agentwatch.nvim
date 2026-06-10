@@ -206,36 +206,9 @@ function M.jump_to_agent()
     remember_latest(bufnr)
 end
 
-local function discard_exited_agent(row)
-    local id = rows.id(row)
-    if not id then
-        notify('Selected agent has no id to discard', vim.log.levels.WARN)
-        return
-    end
-
-    local title = rows.field(row, { 'title', 'name', 'summary' })
-    local label = title ~= '' and title or ('launch ' .. id)
-    confirm('Discard exited agent ' .. label .. '? [y/N] ', function()
-        daemon.delete_launch(state.opts, id, function(err)
-            if err then
-                notify('agent-watchd delete failed: ' .. err, vim.log.levels.ERROR)
-                return
-            end
-
-            notify('Discarded exited agent ' .. label)
-            watcher.refresh({ loading = false })
-        end)
-    end)
-end
-
 function M.delete_agent()
     local row = window.selected_row()
     if not row then
-        return
-    end
-
-    if rows.is_exited(row) then
-        discard_exited_agent(row)
         return
     end
 
@@ -292,17 +265,6 @@ function M.delete_agent_worktree()
         local removed_path, remove_err = worktree.remove(path)
         if remove_err then
             notify('git worktree remove failed: ' .. remove_err, vim.log.levels.ERROR)
-            return
-        end
-
-        if rows.is_exited(row) then
-            daemon.delete_launch(state.opts, id, function(delete_err)
-                if delete_err then
-                    notify('agent-watchd delete failed: ' .. delete_err, vim.log.levels.ERROR)
-                end
-                notify('Deleted worktree ' .. removed_path)
-                watcher.refresh({ loading = false })
-            end)
             return
         end
 

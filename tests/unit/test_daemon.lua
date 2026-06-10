@@ -111,19 +111,15 @@ T['delete()']['sends DELETE to the launch endpoint'] = function()
     eq(captured, { 'curl', '-fsS', '--max-time', '5', '-X', 'DELETE', 'http://x/launches/42' })
 end
 
-T['delete_launch()'] = MiniTest.new_set()
-
-local function delete_with_result(code)
+T['delete()']['reports a request failure on non-zero exit'] = function()
     local original = vim.system
-    local captured = {}
-    vim.system = function(cmd, _, cb)
-        captured.cmd = cmd
-        cb({ code = code, stdout = '', stderr = code ~= 0 and 'boom' or '' })
+    vim.system = function(_, _, cb)
+        cb({ code = 22, stdout = '', stderr = 'boom' })
         return { wait = function() end }
     end
 
     local result = { done = false }
-    daemon.delete_launch({ daemon_url = 'http://x' }, '7', function(err)
+    daemon.delete({ daemon_url = 'http://x' }, '7', function(err)
         result.err = err
         result.done = true
     end)
@@ -132,21 +128,7 @@ local function delete_with_result(code)
     end, 10)
 
     vim.system = original
-    result.cmd = captured.cmd
-    return result
-end
-
-T['delete_launch()']['issues DELETE /launches/:id and reports success'] = function()
-    local result = delete_with_result(0)
-    eq(result.err, nil)
-    eq(result.cmd[#result.cmd], 'http://x/launches/7')
-    eq(vim.list_contains(result.cmd, 'DELETE'), true)
-end
-
-T['delete_launch()']['reports a request failure on non-zero exit'] = function()
-    local result = delete_with_result(22)
     eq(result.err, 'boom')
 end
-
 
 return T

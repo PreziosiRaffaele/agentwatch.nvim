@@ -10,7 +10,7 @@ It displays live agent state from `agent-watchd` and lets the user launch, renam
 
 The plugin communicates with `agent-watchd` using two channels:
 
-- **HTTP API** (direct): agent listing (`GET /agents`, unfiltered — all row filtering happens client-side), renaming (`PATCH /launches/:id`), and discarding exited records (`DELETE /launches/:id`) go straight to `agent-watchd`. The daemon URL is resolved from the `daemon_url` plugin option when set, otherwise from the healthy `~/.agent-watch/daemon.json` state file written by `agent-watchd`, and finally from the default `http://127.0.0.1:3847`. 
+- **HTTP API** (direct): agent listing (`GET /agents`, unfiltered — all row filtering happens client-side), renaming (`PATCH /launches/:id`), and deleting records (`DELETE /launches/:id`) go straight to `agent-watchd`. The daemon URL is resolved from the `daemon_url` plugin option when set, otherwise from the healthy `~/.agent-watch/daemon.json` state file written by `agent-watchd`, and finally from the default `http://127.0.0.1:3847`. 
 - **`aw` CLI**: launching and resuming agents. `aw <agent>` and `aw resume <id>` are the only operations routed through the CLI — they handle daemon startup and launch registration.
 
 ---
@@ -76,8 +76,8 @@ Inside the `AgentWatch` buffer:
 | `a` | Prompt for title and agent type, then launch. |
 | `r` | Rename the selected agent. |
 | `o` | Open the selected agent's worktree with the configured `worktree_opener`. |
-| `dd` | Delete the selected agent after confirmation. Also force-deletes its terminal buffer if it still exists. On an `exited` row, discards the daemon record. |
-| `dw` | Delete the selected agent's Git worktree and agent record after confirmation. Does not delete the branch. Discards the daemon record of an `exited` row. |
+| `dd` | Delete the selected agent after confirmation. |
+| `dw` | Delete the selected agent's Git worktree and agent record after confirmation. Does not delete the branch. |
 | `q` | Close the watch window and stop the watch process. |
 | `?` | Toggle the floating help window for the complete watch-buffer keymap. |
 
@@ -228,11 +228,6 @@ Watch-buffer dd
   → on success, force-deletes the selected terminal buffer if it still exists
   → refreshes the watch buffer
 
-Watch-buffer dd on exited row
-  → prompts: Discard exited agent <title>? [y/N]
-  → on confirmation: DELETE <daemon_url>/launches/<id>
-  → refreshes the watch buffer
-
 Watch-buffer dw
   → reads the selected row's launch ID
   → reads the selected row's folder
@@ -242,7 +237,6 @@ Watch-buffer dw
   → on confirmation, runs: git -C <absolute-path> worktree remove <absolute-path>
   → on successful worktree removal, DELETE <daemon_url>/launches/<id>
   → on successful agent deletion, force-deletes the selected terminal buffer if it still exists
-  → for an exited row, discards the record via DELETE <daemon_url>/launches/<id> without buffer cleanup
   → refreshes the watch buffer
 
 AgentWatchRename <id> <title>

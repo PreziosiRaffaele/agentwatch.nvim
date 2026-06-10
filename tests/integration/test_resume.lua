@@ -142,7 +142,7 @@ T['<CR> refuses to resume when the agent folder is gone'] = function()
     eq(child.lua_get('vim.fn.getfsize(vim.env.AW_LAUNCH_LOG) > 0'), false)
 end
 
-T['dd on an exited row discards the daemon record after confirmation'] = function()
+T['dd on an exited row deletes the daemon record after confirmation'] = function()
     child.lua([[
         vim.env.AW_DAEMON_DELETE_LOG = vim.fn.tempname()
         vim.fn.input = function() return 'y' end

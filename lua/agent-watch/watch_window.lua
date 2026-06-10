@@ -23,8 +23,8 @@ local help_lines = {
     'a     Launch agent',
     'r     Rename selected agent',
     'o     Open selected worktree',
-    'dd    Delete selected agent (discard when exited)',
-    'dw    Delete selected worktree and agent; discards an exited record',
+    'dd    Delete selected agent',
+    'dw    Delete selected worktree and agent',
     'q     Close Agent Watch',
     '?     Close this help',
 }

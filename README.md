@@ -108,7 +108,7 @@ Closing Neovim does not lose your agents: resumable sessions stay tracked by
 the daemon as `exited`. Reopen Neovim in the same project (the main repository
 or any of its worktrees) and the watch buffer lists them again. Press `<CR>` on
 an `exited` row to resume the agent in its original folder, attached to the
-current session. Press `dd` on it to discard the record instead.
+current session. Press `dd` on it to delete the record instead.
 
 **Manage agent rows as tasks evolve**
 
@@ -138,8 +138,8 @@ Inside the `AgentWatch` buffer:
 - `a` prompts for title/agent and launches a new tracked agent.
 - `r` renames the selected agent.
 - `o` opens the selected agent's worktree. The default opener labels linked worktree tabs as `[branch] fileName`.
-- `dd` deletes the selected agent after confirmation and force-deletes its terminal buffer if it still exists. On an `exited` row it discards the daemon record.
-- `dw` deletes the selected agent's Git worktree and agent record after confirmation. It removes the worktree directory, not the branch. Discards an `exited` record.
+- `dd` deletes the selected agent after confirmation. 
+- `dw` deletes the selected agent's Git worktree and agent record after confirmation. It removes the worktree directory, not the branch.
 - `q` closes the watch window.
 - `?` toggles the floating help window for the complete watch-buffer keymap.
 
