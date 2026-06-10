@@ -107,10 +107,6 @@ function M.is_exited(row)
     return type(row) == 'table' and M.field(row, { 'state', 'status' }) == 'exited'
 end
 
-local function owned(row, server)
-    return row.nvim_server == server
-end
-
 -- Exited rows have no live owner: their nvim_server points at a dead session,
 -- so any Neovim session in the same project may adopt (resume) them.
 local function adoptable(row, project_root)
@@ -124,19 +120,16 @@ function M.filter(rows, server, project_root)
     local filtered = {}
     for _, row in ipairs(rows) do
         if type(row) == 'table' then
-            if owned(row, server) then
-                -- The buffer may be gone (e.g. an exited agent whose terminal
-                -- was wiped); clear the stale bufnr so no action uses it.
+            local owned = row.nvim_server == server
+            if owned or adoptable(row, project_root) then
+                -- A bufnr is only trustworthy when this session owns the row
+                -- and the buffer still exists: an adopted row's bufnr may
+                -- collide with an unrelated local buffer, and an owned one
+                -- may be stale after its terminal was wiped.
                 local bufnr = M.bufnr(row)
-                if bufnr and not vim.api.nvim_buf_is_valid(bufnr) then
+                if not (owned and bufnr and vim.api.nvim_buf_is_valid(bufnr)) then
                     row.nvim_terminal_bufnr = nil
                 end
-                table.insert(filtered, row)
-            elseif adoptable(row, project_root) then
-                -- A bufnr from a dead session may collide with an unrelated
-                -- buffer in this process; clear it so no action treats it as
-                -- local.
-                row.nvim_terminal_bufnr = nil
                 table.insert(filtered, row)
             end
         end
