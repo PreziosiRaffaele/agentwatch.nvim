@@ -108,11 +108,7 @@ function M.is_exited(row)
 end
 
 local function owned(row, server)
-    if row.nvim_server ~= server then
-        return false
-    end
-    local bufnr = M.bufnr(row)
-    return bufnr ~= nil and vim.api.nvim_buf_is_valid(bufnr)
+    return row.nvim_server == server
 end
 
 -- Exited rows have no live owner: their nvim_server points at a dead session,
@@ -129,6 +125,12 @@ function M.filter(rows, server, project_root)
     for _, row in ipairs(rows) do
         if type(row) == 'table' then
             if owned(row, server) then
+                -- The buffer may be gone (e.g. an exited agent whose terminal
+                -- was wiped); clear the stale bufnr so no action uses it.
+                local bufnr = M.bufnr(row)
+                if bufnr and not vim.api.nvim_buf_is_valid(bufnr) then
+                    row.nvim_terminal_bufnr = nil
+                end
                 table.insert(filtered, row)
             elseif adoptable(row, project_root) then
                 -- A bufnr from a dead session may collide with an unrelated
