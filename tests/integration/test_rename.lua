@@ -11,11 +11,10 @@ local T = MiniTest.new_set({
             h.setup(child)
             child.lua([[
                 _G.agent_buf = vim.api.nvim_create_buf(false, true)
+                vim.b[_G.agent_buf].agent_watch_ref = 'ref-live'
                 local row = {
                     id = 42, title = 'old title', state = 'working', agent = 'claude',
-                    branch = 'fix-login',
-                    nvim_server = vim.v.servername,
-                    nvim_terminal_bufnr = _G.agent_buf,
+                    branch = 'fix-login', client_ref = 'ref-live',
                 }
                 local f = vim.fn.tempname()
                 vim.fn.writefile({ vim.json.encode({ row }) }, f)

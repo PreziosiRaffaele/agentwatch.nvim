@@ -3,7 +3,6 @@ local daemon = require('agent-watch.daemon')
 local highlights = require('agent-watch.highlights')
 local notify = require('agent-watch.notify').notify
 local rows = require('agent-watch.rows')
-local server = require('agent-watch.nvim_server')
 local terminal = require('agent-watch.terminal')
 local watcher = require('agent-watch.watcher')
 local window = require('agent-watch.watch_window')
@@ -88,11 +87,11 @@ local function confirm(prompt, callback)
     end)
 end
 
-local function latest_daemon_row(agent_rows, nvim_server)
+local function latest_daemon_row(agent_rows)
     local latest_row = nil
     local latest_id = nil
 
-    for _, row in ipairs(rows.filter(agent_rows, nvim_server)) do
+    for _, row in ipairs(rows.filter(agent_rows)) do
         local bufnr = rows.bufnr(row)
         local id = row_id(row)
         if bufnr and id and vim.api.nvim_buf_is_loaded(bufnr) and (not latest_id or id > latest_id) then
@@ -110,18 +109,13 @@ local function open_latest(latest)
 end
 
 local function open_daemon_latest()
-    local nvim_server = server.ensure()
-    if not nvim_server then
-        return
-    end
-
-    daemon.list_agents(state.opts, nvim_server, function(agent_rows, err)
+    daemon.list_agents(state.opts, function(agent_rows, err)
         if err then
             notify('agent-watchd request failed: ' .. err, vim.log.levels.ERROR)
             return
         end
 
-        local row = latest_daemon_row(agent_rows, nvim_server)
+        local row = latest_daemon_row(agent_rows)
         if not row then
             notify('No latest agent terminal found', vim.log.levels.WARN)
             return
@@ -146,9 +140,49 @@ function M.toggle_latest()
     open_daemon_latest()
 end
 
+local function resume_agent(row)
+    local id = rows.id(row)
+    if not id then
+        notify('Selected agent has no id to resume', vim.log.levels.WARN)
+        return
+    end
+
+    local folder = rows.field(row, { 'folder' })
+    if folder == '' or vim.fn.isdirectory(folder) ~= 1 then
+        notify('Agent folder no longer exists: ' .. folder, vim.log.levels.WARN)
+        return
+    end
+
+    -- A buffer matching the row's old client_ref is the terminal this session
+    -- left behind for the exited agent; the resumed agent gets a fresh ref.
+    local stale_bufnr = rows.bufnr(row)
+
+    local bufnr = terminal.resume(state.opts, {
+        id = id,
+        title = rows.field(row, { 'title', 'name', 'summary' }),
+        agent = rows.field(row, { 'agent', 'agent_type', 'type' }),
+        folder = folder,
+    })
+    if not bufnr then
+        return
+    end
+
+    if stale_bufnr and vim.api.nvim_buf_is_valid(stale_bufnr) then
+        vim.api.nvim_buf_delete(stale_bufnr, { force = true })
+    end
+
+    remember_latest(bufnr)
+    watcher.refresh({ loading = false })
+end
+
 function M.jump_to_agent()
     local row = window.selected_row()
     if not row then
+        return
+    end
+
+    if rows.is_exited(row) then
+        resume_agent(row)
         return
     end
 
@@ -309,12 +343,7 @@ function M.prompt_launch()
 end
 
 function M.launch(args, cwd)
-    local nvim_server = server.ensure()
-    if not nvim_server then
-        return
-    end
-
-    local bufnr = terminal.launch(state.opts, nvim_server, args, cwd)
+    local bufnr = terminal.launch(state.opts, args, cwd)
     if bufnr then
         remember_latest(bufnr)
     end

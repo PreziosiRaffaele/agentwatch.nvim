@@ -9,15 +9,15 @@ local T = MiniTest.new_set({
         pre_case = function()
             h.restart(child)
             h.setup(child)
-            -- A real buffer + the live server address so actions that open or
-            -- delete terminal buffers can exercise the normal path.
+            -- A real buffer stamped with the row's client_ref so actions that
+            -- open or delete terminal buffers can exercise the normal path.
             child.lua([[
                 _G.agent_buf = vim.api.nvim_create_buf(false, true)
+                vim.b[_G.agent_buf].agent_watch_ref = 'ref-live'
                 local row = {
                     id = 1, title = 'fix login', state = 'working', agent = 'claude',
                     branch = 'fix-login', folder = '/tmp/x',
-                    nvim_server = vim.v.servername,
-                    nvim_terminal_bufnr = _G.agent_buf,
+                    client_ref = 'ref-live',
                 }
                 local f = vim.fn.tempname()
                 vim.fn.writefile({ vim.json.encode({ row }) }, f)
@@ -50,13 +50,12 @@ T['AgentWatch renders the filtered daemon rows'] = function()
     expect.equality(h.watch_lines(child)[2]:find('working', 1, true) ~= nil, true)
 end
 
-T['AgentWatch renders exited rows whose terminal buffer is gone'] = function()
+T['AgentWatch renders exited project rows whose terminal buffer is gone'] = function()
     child.lua([[
         local row = {
             id = 2, title = 'finished task', state = 'exited', agent = 'codex',
-            branch = 'main', folder = '/tmp/x',
-            nvim_server = vim.v.servername,
-            nvim_terminal_bufnr = 999999,
+            branch = 'main', folder = '/tmp/x', client_ref = 'ref-gone',
+            project_root = require('agent-watch.worktree').project_root(),
         }
         vim.fn.writefile({ vim.json.encode({ row }) }, vim.env.AW_DAEMON_AGENTS_FILE)
     ]])

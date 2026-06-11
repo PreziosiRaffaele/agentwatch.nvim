@@ -41,7 +41,7 @@ local function list_with_stdout(stdout, code)
     end
 
     local result = { done = false }
-    daemon.list_agents({ daemon_url = 'http://x' }, 'srv', function(parsed_rows, err)
+    daemon.list_agents({ daemon_url = 'http://x' }, function(parsed_rows, err)
         result.rows = parsed_rows
         result.err = err
         result.done = true
@@ -109,6 +109,26 @@ T['delete()']['sends DELETE to the launch endpoint'] = function()
     vim.system = original
     eq(result.err, nil)
     eq(captured, { 'curl', '-fsS', '--max-time', '5', '-X', 'DELETE', 'http://x/launches/42' })
+end
+
+T['delete()']['reports a request failure on non-zero exit'] = function()
+    local original = vim.system
+    vim.system = function(_, _, cb)
+        cb({ code = 22, stdout = '', stderr = 'boom' })
+        return { wait = function() end }
+    end
+
+    local result = { done = false }
+    daemon.delete({ daemon_url = 'http://x' }, '7', function(err)
+        result.err = err
+        result.done = true
+    end)
+    vim.wait(1000, function()
+        return result.done
+    end, 10)
+
+    vim.system = original
+    eq(result.err, 'boom')
 end
 
 return T
