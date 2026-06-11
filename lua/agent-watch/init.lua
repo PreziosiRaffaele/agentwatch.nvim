@@ -3,7 +3,6 @@ local daemon = require('agent-watch.daemon')
 local highlights = require('agent-watch.highlights')
 local notify = require('agent-watch.notify').notify
 local rows = require('agent-watch.rows')
-local server = require('agent-watch.nvim_server')
 local terminal = require('agent-watch.terminal')
 local watcher = require('agent-watch.watcher')
 local window = require('agent-watch.watch_window')
@@ -88,11 +87,11 @@ local function confirm(prompt, callback)
     end)
 end
 
-local function latest_daemon_row(agent_rows, nvim_server)
+local function latest_daemon_row(agent_rows)
     local latest_row = nil
     local latest_id = nil
 
-    for _, row in ipairs(rows.filter(agent_rows, nvim_server)) do
+    for _, row in ipairs(rows.filter(agent_rows)) do
         local bufnr = rows.bufnr(row)
         local id = row_id(row)
         if bufnr and id and vim.api.nvim_buf_is_loaded(bufnr) and (not latest_id or id > latest_id) then
@@ -110,18 +109,13 @@ local function open_latest(latest)
 end
 
 local function open_daemon_latest()
-    local nvim_server = server.ensure()
-    if not nvim_server then
-        return
-    end
-
     daemon.list_agents(state.opts, function(agent_rows, err)
         if err then
             notify('agent-watchd request failed: ' .. err, vim.log.levels.ERROR)
             return
         end
 
-        local row = latest_daemon_row(agent_rows, nvim_server)
+        local row = latest_daemon_row(agent_rows)
         if not row then
             notify('No latest agent terminal found', vim.log.levels.WARN)
             return
@@ -146,19 +140,6 @@ function M.toggle_latest()
     open_daemon_latest()
 end
 
--- True only for a terminal buffer this plugin created whose job is gone.
--- A row's bufnr cannot be trusted on its own: with a fixed --listen address
--- an exited row from a dead session looks owned by this one, and its bufnr
--- may collide with any local buffer.
-local function dead_agent_terminal(bufnr)
-    if not vim.api.nvim_buf_is_valid(bufnr) or vim.b[bufnr].agent_watch_title == nil then
-        return false
-    end
-
-    local job = vim.b[bufnr].terminal_job_id
-    return job == nil or vim.fn.jobwait({ job }, 0)[1] ~= -1
-end
-
 local function resume_agent(row)
     local id = rows.id(row)
     if not id then
@@ -172,12 +153,11 @@ local function resume_agent(row)
         return
     end
 
-    local nvim_server = server.ensure()
-    if not nvim_server then
-        return
-    end
+    -- A buffer matching the row's old client_ref is the terminal this session
+    -- left behind for the exited agent; the resumed agent gets a fresh ref.
+    local stale_bufnr = rows.bufnr(row)
 
-    local bufnr = terminal.resume(state.opts, nvim_server, {
+    local bufnr = terminal.resume(state.opts, {
         id = id,
         title = rows.field(row, { 'title', 'name', 'summary' }),
         agent = rows.field(row, { 'agent', 'agent_type', 'type' }),
@@ -187,9 +167,7 @@ local function resume_agent(row)
         return
     end
 
-    -- Clean up the terminal this session left behind for the exited agent.
-    local stale_bufnr = rows.bufnr(row)
-    if stale_bufnr and dead_agent_terminal(stale_bufnr) then
+    if stale_bufnr and vim.api.nvim_buf_is_valid(stale_bufnr) then
         vim.api.nvim_buf_delete(stale_bufnr, { force = true })
     end
 
@@ -365,12 +343,7 @@ function M.prompt_launch()
 end
 
 function M.launch(args, cwd)
-    local nvim_server = server.ensure()
-    if not nvim_server then
-        return
-    end
-
-    local bufnr = terminal.launch(state.opts, nvim_server, args, cwd)
+    local bufnr = terminal.launch(state.opts, args, cwd)
     if bufnr then
         remember_latest(bufnr)
     end

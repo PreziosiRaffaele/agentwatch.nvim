@@ -36,8 +36,7 @@ T['AgentWatchLaunch invokes the CLI with the expected flags'] = function()
     local log = launch_log(child)
     expect.equality(log:find('claude', 1, true) ~= nil, true)
     expect.equality(log:find('--title login', 1, true) ~= nil, true)
-    expect.equality(log:find('--nvim-server', 1, true) ~= nil, true)
-    expect.equality(log:find('--nvim-bufnr', 1, true) ~= nil, true)
+    expect.equality(log:find('--client-ref', 1, true) ~= nil, true)
 end
 
 T['AgentWatchLaunch creates a buffer remembered as the latest agent'] = function()

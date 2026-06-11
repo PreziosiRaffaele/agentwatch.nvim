@@ -60,8 +60,8 @@ With lazy.nvim: >lua
 ==============================================================================
 USAGE                                                      *agent-watch-usage*
 
-Open the watch buffer to see all agents attached to the current Neovim
-server, including exited agents whose terminal buffer is gone: >
+Open the watch buffer to see all agents launched from the current Neovim
+session, plus resumable exited agents from the same project: >
 
     :AgentWatch
 <
@@ -100,8 +100,8 @@ COMMANDS                                              *agent-watch-commands*
 :AgentWatch
 
     Open or refresh the watch buffer. The buffer lists all agents
-    attached to the current Neovim server with their title, state, agent
-    type, relative last-updated timestamp, and branch.
+    launched from the current Neovim session with their title, state,
+    agent type, relative last-updated timestamp, and branch.
 
                                                       *:AgentWatchToggle*
 :AgentWatchToggle

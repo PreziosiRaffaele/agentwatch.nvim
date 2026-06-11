@@ -19,12 +19,12 @@ The plugin communicates with `agent-watchd` using two channels:
 
 **Watch buffer**
 
-- A bottom scratch buffer (`botright split`) showing agents attached to the current Neovim server, plus resumable `exited` agents from the same project.
+- A bottom scratch buffer (`botright split`) showing agents launched from the current Neovim session, plus resumable `exited` agents from the same project.
 - Each poll performs a single unfiltered `GET /agents` request and partitions the rows client-side. A row is kept when either:
-  - its `nvim_server` matches the current server and its terminal buffer is valid (owned rows); or
-  - its `state` is `exited` and its `project_root` matches the local project root (adoptable rows) — kept regardless of `nvim_server` and without a terminal-buffer validity check, since the buffer belongs to a dead session. Their stale `nvim_terminal_bufnr` is cleared when kept, so buffer actions can never mistake it for a local buffer.
-- The plugin uses the existing `vim.v.servername` when Neovim already has a server address; otherwise it starts one with `vim.fn.serverstart()` and uses the returned address.
-- The project root is the same project identity `agent-watchd` stores in `project_root`: inside a Git repository, the repository main working tree (parent directory of `git rev-parse --path-format=absolute --git-common-dir`, so linked worktrees group with their repository); outside a Git repository, the cwd itself. It is resolved once per watch session, like the server address.
+  - its `client_ref` matches a local buffer stamped with the same ref at launch (owned rows); or
+  - its `state` is `exited` and its `project_root` matches the local project root (adoptable rows).
+- Buffer numbers never cross a process boundary: a row is resolved to its terminal buffer by scanning local buffers for the stamped `client_ref`, so a row launched by another Neovim process can never be mistaken for a local buffer.
+- The project root is the same project identity `agent-watchd` stores in `project_root`: inside a Git repository, the repository main working tree (parent directory of `git rev-parse --path-format=absolute --git-common-dir`, so linked worktrees group with their repository); outside a Git repository, the cwd itself. It is resolved once per watch session.
 - Kept rows are sorted by launch ID ascending.
 - Visible columns are `TITLE`, `STATE`, `AGENT`, `UPDATED`, and `BRANCH`.
 - The `STATE` column is highlighted with plugin-owned highlight groups linked to standard Neovim groups, so colors come from the user's active colorscheme.
@@ -34,8 +34,8 @@ The plugin communicates with `agent-watchd` using two channels:
 
 - Each agent is launched in a hidden terminal buffer opened with the configured terminal layout.
 - Supported terminal layouts are `float`, `side`, and `tab`. The default is `side`.
-- `aw <agent>` is started directly as the terminal job, passing `--nvim-server` and `--nvim-bufnr` so `agent-watchd` can link the launch back to this Neovim session.
-- The latest-agent toggle prefers the last terminal launched or opened in the current Neovim session. If that buffer is missing or invalid, it fetches the current daemon rows for this Neovim server and opens the valid row with the highest launch ID.
+- `aw <agent>` is started directly as the terminal job, passing `--client-ref` with a token unique to this terminal (Neovim pid + monotonic timestamp). The token is also stamped on the terminal buffer as `vim.b.agent_watch_ref`; `agent-watchd` stores and echoes it so the session can recognise its own rows.
+- The latest-agent toggle prefers the last terminal launched or opened in the current Neovim session. If that buffer is missing or invalid, it fetches the current daemon rows, keeps the ones owned by this session, and opens the valid row with the highest launch ID.
 
 **Worktree tabs**
 
@@ -46,9 +46,9 @@ The plugin communicates with `agent-watchd` using two channels:
 
 ---
 
-## Neovim Server
+## Client Reference
 
-The plugin calls `vim.fn.serverstart()` to ensure a server address exists and passes it to `aw` at launch time. This address is stored in the `nvim_server` field of the agent record and used to filter `GET /agents` results.
+The plugin generates a token unique to each terminal (Neovim pid + monotonic timestamp), stamps it on the terminal buffer as `vim.b.agent_watch_ref`, and passes it to `aw` as `--client-ref`. `agent-watchd` stores it opaquely in the `client_ref` field and echoes it in `GET /agents`, letting the launching session recognise its own rows without the daemon ever holding editor state.
 
 ---
 
@@ -169,24 +169,22 @@ vim.api.nvim_set_hl(0, 'AgentWatchStateRunning', { link = 'String' })
 
 ```text
 AgentWatch / AgentWatchToggle
-  → ensures Neovim server is running
   → resolves the project root from Neovim's cwd (main worktree root, or the cwd outside a Git repo)
   → resolves daemon URL from daemon_url, ~/.agent-watch/daemon.json, or default localhost
   → polls: GET <daemon_url>/agents
-  → keeps rows owned by this Neovim server (server match + valid terminal buffer)
+  → keeps rows owned by this session (client_ref matches a stamped local buffer)
     and exited rows whose project_root matches the local project root
 
 AgentWatchToggleLatest
   → closes the last launched/opened agent terminal when it is visible
   → otherwise reopens the last launched/opened terminal with the configured layout
   → if local latest state is invalid, fetches GET <daemon_url>/agents
-  → chooses the valid row owned by this Neovim server with the highest launch ID and opens it
+  → chooses the valid row owned by this session with the highest launch ID and opens it
 
 AgentWatchLaunch <title> [agent]
-  → ensures Neovim server is running
-  → creates a hidden terminal buffer
+  → creates a hidden terminal buffer stamped with a fresh client_ref
   → opens it with the configured terminal layout
-  → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
+  → starts terminal job: aw <agent> --title <title> --client-ref <ref>
 
 AgentWatchLaunchWorktree <title> [branch] [agent]
   → resolves the current Git repository root
@@ -195,9 +193,9 @@ AgentWatchLaunchWorktree <title> [branch] [agent]
   → uses the provided agent, or default_agent when omitted
   → branch_slug is the trimmed branch with non-[A-Za-z0-9._] runs replaced by -
   → creates a Git worktree at ../<branch_slug>
-  → creates a hidden terminal buffer with cwd set to the worktree path
+  → creates a hidden terminal buffer stamped with a fresh client_ref, cwd set to the worktree path
   → opens it with the configured terminal layout
-  → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
+  → starts terminal job: aw <agent> --title <title> --client-ref <ref>
 
 AgentWatchAttachWorktree <path> [title] [agent]
   → expands ~ and resolves <path> to an absolute, real path
@@ -207,19 +205,17 @@ AgentWatchAttachWorktree <path> [title] [agent]
   → when <title> is omitted, derives it from the worktree's current branch (git -C <path> rev-parse --abbrev-ref HEAD), falling back to the resolved path's basename when HEAD is detached or the call fails
   → when a 2nd positional is given and matches an available agent name, treats it as <agent> and still derives <title> via the same rule
   → uses the provided agent, or default_agent when omitted
-  → ensures Neovim server is running
-  → creates a hidden terminal buffer with cwd set to <path>
+  → creates a hidden terminal buffer stamped with a fresh client_ref, cwd set to <path>
   → opens it with the configured terminal layout
-  → starts terminal job: aw <agent> --title <title> --nvim-server <addr> --nvim-bufnr <bufnr>
+  → starts terminal job: aw <agent> --title <title> --client-ref <ref>
 
 Resume selected agent (<CR> on exited row)
   → verifies the row's folder still exists and is a directory; errors otherwise
-  → ensures Neovim server is running
-  → creates a hidden terminal buffer with cwd set to the row's folder
+  → creates a hidden terminal buffer stamped with a fresh client_ref, cwd set to the row's folder
   → opens it with the configured terminal layout
-  → starts terminal job: aw resume <id> --nvim-server <addr> --nvim-bufnr <bufnr>
+  → starts terminal job: aw resume <id> --client-ref <ref>
   → the daemon re-attaches the record to this session; the resumed terminal becomes the latest-agent toggle target
-  → deletes the row's stale terminal buffer only when it is an agent terminal whose job exited
+  → deletes the local buffer still carrying the row's old client_ref: the terminal this session left behind for the exited agent
 
 Watch-buffer dd
   → reads the selected row's launch ID

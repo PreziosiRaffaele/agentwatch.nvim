@@ -36,7 +36,7 @@ local T = MiniTest.new_set({
                 _G.exited_row = {
                     id = 7, title = 'fix login', state = 'exited', agent = 'claude',
                     branch = 'fix-login', folder = _G.repo, project_root = _G.project_root,
-                    nvim_server = '/tmp/dead-server', nvim_terminal_bufnr = 999999,
+                    client_ref = 'ref-from-dead-session',
                 }
                 _G.write_agents(_G.exited_row)
 
@@ -112,8 +112,7 @@ T['<CR> on an exited row resumes it attached to this session'] = function()
     )
 
     local log = child.lua_get("table.concat(vim.fn.readfile(vim.env.AW_LAUNCH_LOG), '\\n')")
-    expect.equality(log:find('resume 7 --nvim-server ', 1, true) == 1, true)
-    expect.equality(log:find('--nvim-bufnr', 1, true) ~= nil, true)
+    expect.equality(log:find('resume 7 --client-ref ', 1, true) == 1, true)
 end
 
 T['<CR> refuses to resume when the agent folder is gone'] = function()
@@ -142,15 +141,13 @@ T['<CR> refuses to resume when the agent folder is gone'] = function()
     eq(child.lua_get('vim.fn.getfsize(vim.env.AW_LAUNCH_LOG) > 0'), false)
 end
 
-T['<CR> spares an unrelated buffer colliding with the stale bufnr'] = function()
+T['<CR> deletes the terminal this session left behind for the agent'] = function()
     child.lua([[
         vim.env.AW_LAUNCH_LOG = vim.fn.tempname()
-        -- With a fixed --listen address a dead session's row looks owned by
-        -- this one, so its bufnr survives rows.filter and may point at any
-        -- local buffer.
-        _G.victim = vim.api.nvim_create_buf(true, false)
-        _G.exited_row.nvim_server = vim.v.servername
-        _G.exited_row.nvim_terminal_bufnr = _G.victim
+        -- The agent exited while this session was open: a local buffer still
+        -- carries the row's client_ref.
+        _G.leftover = vim.api.nvim_create_buf(false, true)
+        vim.b[_G.leftover].agent_watch_ref = _G.exited_row.client_ref
         _G.write_agents(_G.exited_row)
     ]])
     child.cmd('AgentWatch')
@@ -165,7 +162,7 @@ T['<CR> spares an unrelated buffer colliding with the stale bufnr'] = function()
         ),
         true
     )
-    eq(child.lua_get('vim.api.nvim_buf_is_valid(_G.victim)'), true)
+    eq(child.lua_get('vim.api.nvim_buf_is_valid(_G.leftover)'), false)
 end
 
 T['dd on an exited row deletes the daemon record after confirmation'] = function()

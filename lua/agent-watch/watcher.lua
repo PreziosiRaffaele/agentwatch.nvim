@@ -1,6 +1,5 @@
 local daemon = require('agent-watch.daemon')
 local rows = require('agent-watch.rows')
-local server = require('agent-watch.nvim_server')
 local window = require('agent-watch.watch_window')
 
 local M = {}
@@ -9,7 +8,6 @@ local state = {
     opts = nil,
     timer = nil,
     request_running = false,
-    server = nil,
     project_root = nil,
 }
 
@@ -31,13 +29,11 @@ end
 function M.stop()
     stop_timer()
     state.request_running = false
-    state.server = nil
     state.project_root = nil
 end
 
 local function render_list(open, loading)
-    state.server = state.server or server.ensure()
-    if not state.server or state.request_running then
+    if state.request_running then
         return
     end
 
@@ -61,7 +57,7 @@ local function render_list(open, loading)
             return
         end
 
-        local lines, rows_by_line, state_ranges = rows.render(rows.filter(agent_rows, state.server, state.project_root))
+        local lines, rows_by_line, state_ranges = rows.render(rows.filter(agent_rows, state.project_root))
         window.set_lines(lines, rows_by_line, { open = open, state_ranges = state_ranges })
     end)
 end
