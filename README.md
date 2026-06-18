@@ -93,7 +93,7 @@ worktree and start an agent inside it. Use
 `:AgentWatchAttachWorktree <path> [title] [agent]` when the worktree already
 exists. This is the main flow for giving each agent an isolated checkout while
 keeping all of them visible from one editor. When a linked worktree opens in a
-Neovim tab, Agent Watch labels the tab as `[branch] fileName` unless you already
+Neovim tab, Agent Watch labels the tab as `[title] fileName` unless you already
 use a custom tabline. The repository main working tree keeps normal tab labels.
 
 **Jump back to agent terminals quickly**
@@ -137,8 +137,8 @@ Inside the `AgentWatch` buffer:
 - `<CR>` jumps to the selected agent terminal buffer. On an `exited` row it resumes the agent instead.
 - `a` prompts for title/agent and launches a new tracked agent.
 - `r` renames the selected agent.
-- `o` opens the selected agent's worktree. The default opener labels linked worktree tabs as `[branch] fileName`.
-- `dd` deletes the selected agent after confirmation. 
+- `o` opens the selected agent's worktree. The default opener labels linked worktree tabs as `[title] fileName`.
+- `dd` deletes the selected agent after confirmation.
 - `dw` deletes the selected agent's Git worktree and agent record after confirmation. It removes the worktree directory, not the branch.
 - `q` closes the watch window.
 - `?` toggles the floating help window for the complete watch-buffer keymap.
@@ -187,4 +187,4 @@ If `available_agents` or `default_agent` are misconfigured, the plugin surfaces 
 For `side`, `terminal.side` chooses `right` or `left`, and `terminal.width` controls the split width.
 For `float`, `terminal.float_width` and `terminal.float_height` are editor-size fractions from `0` to `1`.
 `worktree_opener` controls whether selected worktrees open in Neovim tabs or tmux windows.
-`worktree_tab_label` installs the default `[branch] fileName` tabline for linked Agent Watch worktree tabs when Neovim's `tabline` option is empty. Set it to `false` if your own tabline handles this.
+`worktree_tab_label` installs the default `[title] fileName` tabline for linked Agent Watch worktree tabs when Neovim's `tabline` option is empty. Set it to `false` if your own tabline handles this.

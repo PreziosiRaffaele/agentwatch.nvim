@@ -83,7 +83,7 @@ Attach to an existing worktree: >
 <
 
 Open a selected worktree from the watch buffer with `o`. With the default
-Neovim opener, linked worktrees open in new tabs labeled as `[branch] fileName`
+Neovim opener, linked worktrees open in new tabs labeled as `[title] fileName`
 unless a custom tabline is already configured. The repository main working tree
 keeps normal tab labels.
 
@@ -291,12 +291,11 @@ worktree_tab_label (default: `true`)
 
     When `true`, Agent Watch installs its default tabline if Neovim's
     `tabline` option is empty. Linked worktree tabs opened by Agent Watch
-    are labeled as `[branch] fileName`. The repository main working tree
+    are labeled as `[title] fileName`. The repository main working tree
     keeps normal tab labels.
 
     Custom tabline plugins are not overwritten. They can read
-    `vim.t.agent_watch_branch`, `vim.t.agent_watch_title`, and
-    `vim.t.agent_watch_worktree`.
+    `vim.t.agent_watch_title`.
 
                                                 *agent-watch-config-terminal*
 terminal.layout (default: `'side'`)

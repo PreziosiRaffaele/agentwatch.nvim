@@ -41,8 +41,8 @@ The plugin communicates with `agent-watchd` using two channels:
 
 - The default `nvim` worktree opener creates a new tab and switches the tab-local working directory to the selected worktree.
 - For linked Git worktrees, the opener stores tab-local Agent Watch metadata. The repository main working tree keeps normal tab labels.
-- When `worktree_tab_label` is enabled, `setup()` loads the worktree-tab module after configuration validation. If Neovim has no custom tabline configured, Agent Watch installs a tabline that labels linked worktree tabs as `[branch] fileName`.
-- Custom tabline plugins are not overwritten. They can read `vim.t.agent_watch_branch`, `vim.t.agent_watch_title`, and `vim.t.agent_watch_worktree` for linked Agent Watch worktree tabs.
+- When `worktree_tab_label` is enabled, `setup()` loads the worktree-tab module after configuration validation. If Neovim has no custom tabline configured, Agent Watch installs a tabline that labels linked worktree tabs as `[title] fileName`.
+- Custom tabline plugins are not overwritten. They can read `vim.t.agent_watch_title` for linked Agent Watch worktree tabs.
 
 ---
 
@@ -116,7 +116,7 @@ require('agent-watch').setup({
     height         = 8,             -- watch window height in lines
     fixed_height   = true,          -- winfixheight on the watch window
     watch_interval = 1000,          -- daemon polling interval in ms
-    worktree_tab_label = true,      -- label nvim worktree tabs as [branch] fileName
+    worktree_tab_label = true,      -- label nvim worktree tabs as [title] fileName
     default_agent  = 'claude',      -- pre-selected agent in the launch prompt
     available_agents = { 'codex', 'agent', 'claude' }, -- agents shown in the picker
     terminal = {
@@ -243,7 +243,7 @@ AgentWatchRename <id> <title>
 Open selected worktree (o)
   → selected row folder from watch buffer
   → nvim opener (default): tabnew, then tcd <folder>
-  → for linked worktrees, stores vim.t.agent_watch_title, vim.t.agent_watch_branch, and vim.t.agent_watch_worktree
-  → default Agent Watch tabline labels linked worktree tabs as [branch] fileName when enabled
+  → for linked worktrees, stores vim.t.agent_watch_title
+  → default Agent Watch tabline labels linked worktree tabs as [title] fileName when enabled
   → tmux opener: requires $TMUX; starts detached job: tmux new-window -n <title> -c <folder>
 ```

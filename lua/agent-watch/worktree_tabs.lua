@@ -1,5 +1,3 @@
-local rows = require('agent-watch.rows')
-
 local M = {}
 
 local state = {
@@ -44,10 +42,10 @@ end
 local function tab_label(tabnr)
     local bufnr = current_tab_buffer(tabnr)
     local label = buffer_label(bufnr)
-    local branch = vim.t[tabnr].agent_watch_branch
+    local title = vim.t[tabnr].agent_watch_title
 
-    if type(branch) == 'string' and branch ~= '' then
-        label = '[' .. branch .. '] ' .. label
+    if type(title) == 'string' and title ~= '' then
+        label = '[' .. title .. '] ' .. label
     end
 
     if tab_modified(tabnr) then
@@ -57,19 +55,8 @@ local function tab_label(tabnr)
     return label
 end
 
-local function branch_label(row, folder)
-    local branch = rows.field(row, { 'branch', 'git_branch' })
-    if branch ~= '' then
-        return branch
-    end
-
-    return vim.fn.fnamemodify(folder, ':t')
-end
-
-function M.mark_current(row, folder)
-    vim.t.agent_watch_title = rows.field(row, { 'title', 'name', 'summary' })
-    vim.t.agent_watch_branch = branch_label(row, folder)
-    vim.t.agent_watch_worktree = folder
+function M.mark_current(row)
+    vim.t.agent_watch_title = row.title
 end
 
 function M.render()

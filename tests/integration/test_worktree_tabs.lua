@@ -51,7 +51,7 @@ local T = MiniTest.new_set({
     },
 })
 
-T['o opens the worktree in a tab and labels it [branch] fileName'] = function()
+T['o opens the worktree in a tab and labels it [title] fileName'] = function()
     child.cmd('AgentWatch')
     h.wait_for(child, "_G.watch_has('fix login')")
 
@@ -64,12 +64,13 @@ T['o opens the worktree in a tab and labels it [branch] fileName'] = function()
     ]])
     child.type_keys('o')
 
-    -- The new tab carries Agent Watch metadata and the tabline labels it.
-    eq(child.lua_get('vim.t.agent_watch_branch'), 'feature-x')
-    eq(child.lua_get('vim.t.agent_watch_worktree'), child.lua_get('_G.worktree_path'))
+    -- The new tab carries the agent title and the tabline labels it.
+    eq(child.lua_get('vim.t.agent_watch_title'), 'fix login')
+    eq(child.lua_get('vim.t.agent_watch_branch'), vim.NIL)
+    eq(child.lua_get('vim.t.agent_watch_worktree'), vim.NIL)
 
     local tabline = child.lua_get([[require('agent-watch.worktree_tabs').render()]])
-    expect.equality(tabline:find('[feature-x]', 1, true) ~= nil, true)
+    expect.equality(tabline:find('[fix login]', 1, true) ~= nil, true)
 end
 
 return T
