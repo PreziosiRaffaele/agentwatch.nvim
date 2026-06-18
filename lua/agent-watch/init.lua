@@ -412,7 +412,7 @@ function M.open_worktree()
         local worktree = require('agent-watch.worktree')
         local is_linked = worktree.is_linked_path(folder)
         if is_linked == true and state.worktree_tabs then
-            state.worktree_tabs.mark_current(row, folder)
+            state.worktree_tabs.mark_current(row)
         end
     end
 end
