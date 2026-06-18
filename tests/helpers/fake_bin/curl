@@ -1,0 +1,60 @@
+#!/bin/sh
+# Stub `curl` standing in for agent-watchd. agent-watch.nvim talks to the daemon
+# exclusively through curl, so stubbing it makes daemon interaction fully
+# deterministic and offline. Behaviour is driven entirely by environment:
+#
+#   AW_DAEMON_AGENTS_FILE  file whose contents are returned for GET /agents
+#   AW_DAEMON_PATCH_LOG    PATCH requests are appended as "<url>\t<body>"
+#   AW_DAEMON_DELETE_LOG   DELETE request URLs are appended one per line
+#   AW_DAEMON_FAIL         when set, exit non-zero to exercise the error path
+
+method=GET
+data=""
+url=""
+prev=""
+for arg in "$@"; do
+    case "$prev" in
+    -X) method="$arg" ;;
+    --data) data="$arg" ;;
+    esac
+    case "$arg" in
+    http://* | https://*) url="$arg" ;;
+    esac
+    prev="$arg"
+done
+
+if [ -n "$AW_DAEMON_FAIL" ]; then
+    echo "curl: (22) simulated agent-watchd failure" >&2
+    exit 22
+fi
+
+if [ "$method" = "DELETE" ]; then
+    if [ -n "$AW_DAEMON_DELETE_LOG" ]; then
+        printf '%s\n' "$url" >>"$AW_DAEMON_DELETE_LOG"
+    fi
+    printf '{"ok":true}'
+    exit 0
+fi
+
+if [ "$method" = "PATCH" ]; then
+    if [ -n "$AW_DAEMON_PATCH_LOG" ]; then
+        printf '%s\t%s\n' "$url" "$data" >>"$AW_DAEMON_PATCH_LOG"
+    fi
+    printf '{}'
+    exit 0
+fi
+
+if [ "$method" = "DELETE" ]; then
+    if [ -n "$AW_DAEMON_DELETE_LOG" ]; then
+        printf '%s\n' "$url" >>"$AW_DAEMON_DELETE_LOG"
+    fi
+    printf '{}'
+    exit 0
+fi
+
+if [ -n "$AW_DAEMON_AGENTS_FILE" ] && [ -f "$AW_DAEMON_AGENTS_FILE" ]; then
+    cat "$AW_DAEMON_AGENTS_FILE"
+else
+    printf '[]'
+fi
+exit 0

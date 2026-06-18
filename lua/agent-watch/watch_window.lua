@@ -19,12 +19,12 @@ local statusline = 'Agent Watch  <CR> open  a add  r rename  ? help  q close'
 local help_lines = {
     'Agent Watch',
     '',
-    '<CR>  Open selected agent terminal',
+    '<CR>  Open selected agent terminal (resume when exited)',
     'a     Launch agent',
     'r     Rename selected agent',
     'o     Open selected worktree',
-    'dd    Delete selected terminal buffer',
-    'dw    Delete selected worktree and terminal buffer',
+    'dd    Delete selected agent',
+    'dw    Delete selected worktree and agent',
     'q     Close Agent Watch',
     '?     Close this help',
 }
@@ -176,16 +176,11 @@ local function create_buffer()
         'n',
         '<CR>',
         state.actions.jump,
-        { buffer = state.buf, silent = true, desc = 'Jump to agent terminal' }
+        { buffer = state.buf, silent = true, desc = 'Open or resume agent terminal' }
     )
     vim.keymap.set('n', 'a', state.actions.launch, { buffer = state.buf, silent = true, desc = 'Add agent' })
     vim.keymap.set('n', 'r', state.actions.rename, { buffer = state.buf, silent = true, desc = 'Rename agent' })
-    vim.keymap.set(
-        'n',
-        'dd',
-        state.actions.delete,
-        { buffer = state.buf, silent = true, desc = 'Delete agent terminal' }
-    )
+    vim.keymap.set('n', 'dd', state.actions.delete, { buffer = state.buf, silent = true, desc = 'Delete agent' })
     vim.keymap.set(
         'n',
         'dw',

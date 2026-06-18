@@ -87,12 +87,21 @@ function M.field(row, names)
     return ''
 end
 
+-- Resolves a row to this session's terminal buffer through the client_ref
+-- stamped at launch. Buffer numbers never cross a process boundary: a row
+-- launched by another Neovim session matches nothing here.
 function M.bufnr(row)
-    local bufnr = tonumber(row.nvim_terminal_bufnr)
-    if not bufnr then
+    local ref = M.field(row, { 'client_ref' })
+    if ref == '' then
         return nil
     end
-    return bufnr
+
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_valid(bufnr) and vim.b[bufnr].agent_watch_ref == ref then
+            return bufnr
+        end
+    end
+    return nil
 end
 
 function M.id(row)
@@ -103,16 +112,29 @@ function M.id(row)
     return tostring(id)
 end
 
-function M.filter(rows, server)
+function M.is_exited(row)
+    return type(row) == 'table' and M.field(row, { 'state', 'status' }) == 'exited'
+end
+
+-- Exited rows have no live terminal anywhere, so any Neovim session in the
+-- same project may adopt (resume) them.
+local function adoptable(row, project_root)
+    if not project_root or project_root == '' then
+        return false
+    end
+    return M.is_exited(row) and row.project_root == project_root
+end
+
+function M.filter(rows, project_root)
     local filtered = {}
     for _, row in ipairs(rows) do
-        if type(row) == 'table' and row.nvim_server == server then
-            local bufnr = M.bufnr(row)
-            if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
-                table.insert(filtered, row)
-            end
+        if type(row) == 'table' and (M.bufnr(row) ~= nil or adoptable(row, project_root)) then
+            table.insert(filtered, row)
         end
     end
+    table.sort(filtered, function(a, b)
+        return (tonumber(M.id(a)) or math.huge) < (tonumber(M.id(b)) or math.huge)
+    end)
     return filtered
 end
 
@@ -122,7 +144,7 @@ function M.render(rows)
     local state_ranges = {}
 
     if #rows == 0 then
-        table.insert(lines, 'No active agents for this Neovim server.')
+        table.insert(lines, 'No agents for this Neovim session or project.')
         return lines, rows_by_line, state_ranges
     end
 

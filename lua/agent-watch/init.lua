@@ -3,7 +3,6 @@ local daemon = require('agent-watch.daemon')
 local highlights = require('agent-watch.highlights')
 local notify = require('agent-watch.notify').notify
 local rows = require('agent-watch.rows')
-local server = require('agent-watch.nvim_server')
 local terminal = require('agent-watch.terminal')
 local watcher = require('agent-watch.watcher')
 local window = require('agent-watch.watch_window')
@@ -77,11 +76,22 @@ local function row_id(row)
     return tonumber(rows.id(row))
 end
 
-local function latest_daemon_row(agent_rows, nvim_server)
+local function confirm(prompt, callback)
+    vim.ui.input({ prompt = prompt }, function(answer)
+        answer = vim.trim(answer or ''):lower()
+        if answer ~= 'y' and answer ~= 'yes' then
+            return
+        end
+
+        callback()
+    end)
+end
+
+local function latest_daemon_row(agent_rows)
     local latest_row = nil
     local latest_id = nil
 
-    for _, row in ipairs(rows.filter(agent_rows, nvim_server)) do
+    for _, row in ipairs(rows.filter(agent_rows)) do
         local bufnr = rows.bufnr(row)
         local id = row_id(row)
         if bufnr and id and vim.api.nvim_buf_is_loaded(bufnr) and (not latest_id or id > latest_id) then
@@ -99,18 +109,13 @@ local function open_latest(latest)
 end
 
 local function open_daemon_latest()
-    local nvim_server = server.ensure()
-    if not nvim_server then
-        return
-    end
-
-    daemon.list_agents(state.opts, nvim_server, function(agent_rows, err)
+    daemon.list_agents(state.opts, function(agent_rows, err)
         if err then
             notify('agent-watchd request failed: ' .. err, vim.log.levels.ERROR)
             return
         end
 
-        local row = latest_daemon_row(agent_rows, nvim_server)
+        local row = latest_daemon_row(agent_rows)
         if not row then
             notify('No latest agent terminal found', vim.log.levels.WARN)
             return
@@ -135,15 +140,55 @@ function M.toggle_latest()
     open_daemon_latest()
 end
 
+local function resume_agent(row)
+    local id = rows.id(row)
+    if not id then
+        notify('Selected agent has no id to resume', vim.log.levels.WARN)
+        return
+    end
+
+    local folder = rows.field(row, { 'folder' })
+    if folder == '' or vim.fn.isdirectory(folder) ~= 1 then
+        notify('Agent folder no longer exists: ' .. folder, vim.log.levels.WARN)
+        return
+    end
+
+    -- A buffer matching the row's old client_ref is the terminal this session
+    -- left behind for the exited agent; the resumed agent gets a fresh ref.
+    local stale_bufnr = rows.bufnr(row)
+
+    local bufnr = terminal.resume(state.opts, {
+        id = id,
+        title = rows.field(row, { 'title', 'name', 'summary' }),
+        agent = rows.field(row, { 'agent', 'agent_type', 'type' }),
+        folder = folder,
+    })
+    if not bufnr then
+        return
+    end
+
+    if stale_bufnr and vim.api.nvim_buf_is_valid(stale_bufnr) then
+        vim.api.nvim_buf_delete(stale_bufnr, { force = true })
+    end
+
+    remember_latest(bufnr)
+    watcher.refresh({ loading = false })
+end
+
 function M.jump_to_agent()
     local row = window.selected_row()
     if not row then
         return
     end
 
+    if rows.is_exited(row) then
+        resume_agent(row)
+        return
+    end
+
     local bufnr = rows.bufnr(row)
-    if not bufnr or not vim.api.nvim_buf_is_loaded(bufnr) then
-        notify('Agent terminal buffer is not loaded', vim.log.levels.WARN)
+    if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) or not vim.api.nvim_buf_is_loaded(bufnr) then
+        notify('Agent terminal buffer is not available', vim.log.levels.WARN)
         return
     end
 
@@ -157,14 +202,30 @@ function M.delete_agent()
         return
     end
 
-    local bufnr = rows.bufnr(row)
-    if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
-        notify('Agent terminal buffer is not valid', vim.log.levels.WARN)
+    local id = rows.id(row)
+    if not id then
+        notify('Selected agent has no id to delete', vim.log.levels.WARN)
         return
     end
 
-    vim.api.nvim_buf_delete(bufnr, { force = true })
-    watcher.refresh({ loading = false })
+    local title = rows.field(row, { 'title', 'name', 'summary' })
+    local label = title ~= '' and title or ('#' .. tostring(id))
+    local bufnr = rows.bufnr(row)
+    confirm('Delete agent ' .. label .. '? [y/N] ', function()
+        daemon.delete(state.opts, id, function(err)
+            if err then
+                notify('agent-watchd delete failed: ' .. err, vim.log.levels.ERROR)
+                return
+            end
+
+            if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+                vim.api.nvim_buf_delete(bufnr, { force = true })
+            end
+
+            notify('Deleted agent ' .. label)
+            watcher.refresh({ loading = false })
+        end)
+    end)
 end
 
 function M.delete_agent_worktree()
@@ -181,25 +242,36 @@ function M.delete_agent_worktree()
         return
     end
 
-    local answer = vim.fn.input('Delete worktree ' .. path .. '? [y/N] ')
-    answer = vim.trim(answer or ''):lower()
-    if answer ~= 'y' and answer ~= 'yes' then
+    local id = rows.id(row)
+    if not id then
+        notify('Selected agent has no id to delete', vim.log.levels.WARN)
         return
     end
 
-    local removed_path, remove_err = worktree.remove(path)
-    if remove_err then
-        notify('git worktree remove failed: ' .. remove_err, vim.log.levels.ERROR)
-        return
-    end
-
+    local title = rows.field(row, { 'title', 'name', 'summary' })
+    local label = title ~= '' and title or ('#' .. tostring(id))
     local bufnr = rows.bufnr(row)
-    if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
-        vim.api.nvim_buf_delete(bufnr, { force = true })
-    end
+    confirm('Delete worktree ' .. path .. ' and agent ' .. label .. '? [y/N] ', function()
+        local removed_path, remove_err = worktree.remove(path)
+        if remove_err then
+            notify('git worktree remove failed: ' .. remove_err, vim.log.levels.ERROR)
+            return
+        end
 
-    notify('Deleted worktree ' .. removed_path)
-    watcher.refresh({ loading = false })
+        daemon.delete(state.opts, id, function(err)
+            if err then
+                notify('agent-watchd delete failed: ' .. err, vim.log.levels.ERROR)
+                return
+            end
+
+            if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+                vim.api.nvim_buf_delete(bufnr, { force = true })
+            end
+
+            notify('Deleted worktree ' .. removed_path .. ' and agent ' .. label)
+            watcher.refresh({ loading = false })
+        end)
+    end)
 end
 
 function M.rename_agent(args)
@@ -228,7 +300,7 @@ function M.rename_agent(args)
             end
 
             local bufnr = rows.bufnr(row)
-            if bufnr then
+            if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
                 vim.b[bufnr].agent_watch_title = title
                 terminal.refresh_bufname(bufnr)
             end
@@ -271,12 +343,7 @@ function M.prompt_launch()
 end
 
 function M.launch(args, cwd)
-    local nvim_server = server.ensure()
-    if not nvim_server then
-        return
-    end
-
-    local bufnr = terminal.launch(state.opts, nvim_server, args, cwd)
+    local bufnr = terminal.launch(state.opts, args, cwd)
     if bufnr then
         remember_latest(bufnr)
     end
@@ -286,26 +353,43 @@ function M.launch_worktree(args)
     local worktree = require('agent-watch.worktree')
     args = args or {}
 
-    local given_title = args[1]
-    local given_branch = args[2]
-    local given_agent = args[3]
-
-    if
-        not given_title
-        or vim.trim(given_title) == ''
-        or not given_branch
-        or vim.trim(given_branch) == ''
-        or #args > 3
-    then
-        notify('Usage: AgentWatchLaunchWorktree <title> <branch> [agent]', vim.log.levels.ERROR)
+    if #args < 1 or #args > 3 then
+        notify('Usage: AgentWatchLaunchWorktree <title> [branch] [agent]', vim.log.levels.ERROR)
         return
     end
 
-    given_title = vim.trim(given_title)
-    given_branch = vim.trim(given_branch)
-    given_agent = given_agent and vim.trim(given_agent) or nil
-    if given_agent == '' then
-        given_agent = nil
+    local given_title = vim.trim(args[1] or '')
+    if given_title == '' then
+        notify('Usage: AgentWatchLaunchWorktree <title> [branch] [agent]', vim.log.levels.ERROR)
+        return
+    end
+
+    local agent_set = config.available_agent_set(state.opts)
+    local given_branch = nil
+    local given_agent = nil
+
+    if #args == 2 then
+        local second = vim.trim(args[2] or '')
+        if second ~= '' then
+            if agent_set[second] then
+                given_agent = second
+            else
+                given_branch = second
+            end
+        end
+    elseif #args == 3 then
+        local second = vim.trim(args[2] or '')
+        local third = vim.trim(args[3] or '')
+        given_branch = second ~= '' and second or nil
+        given_agent = third ~= '' and third or nil
+    end
+
+    if not given_branch then
+        given_branch = worktree.title_to_branch(given_title)
+        if given_branch == '' then
+            notify('Could not derive a branch name from title "' .. given_title .. '"', vim.log.levels.ERROR)
+            return
+        end
     end
 
     local repo_root = worktree.repo_root()
@@ -314,41 +398,52 @@ function M.launch_worktree(args)
         return
     end
 
-    local function do_launch(title, branch, agent)
-        local path = worktree.default_path(repo_root, branch, config.worktree_dir)
-        local err = worktree.add(repo_root, branch, path)
-        if err then
-            notify('git worktree add failed: ' .. err, vim.log.levels.ERROR)
-            return
-        end
-        M.launch({ title, agent }, path)
+    local path = worktree.default_path(repo_root, given_branch, config.worktree_dir)
+    local err = worktree.add(repo_root, given_branch, path)
+    if err then
+        notify('git worktree add failed: ' .. err, vim.log.levels.ERROR)
+        return
     end
-
-    do_launch(given_title, given_branch, given_agent)
+    M.launch({ given_title, given_agent }, path)
 end
 
 function M.attach_worktree(args)
     local worktree = require('agent-watch.worktree')
     args = args or {}
 
-    local given_title = args[1]
-    local given_path = args[2]
-    local given_agent = args[3]
-
-    if not given_title or vim.trim(given_title) == '' or not given_path or vim.trim(given_path) == '' or #args > 3 then
-        notify('Usage: AgentWatchAttachWorktree <title> <path> [agent]', vim.log.levels.ERROR)
+    if #args < 1 or #args > 3 then
+        notify('Usage: AgentWatchAttachWorktree <path> [title] [agent]', vim.log.levels.ERROR)
         return
     end
 
-    given_title = vim.trim(given_title)
-    given_agent = given_agent and vim.trim(given_agent) or nil
-    if given_agent == '' then
-        given_agent = nil
+    local given_path = vim.trim(args[1] or '')
+    if given_path == '' then
+        notify('Usage: AgentWatchAttachWorktree <path> [title] [agent]', vim.log.levels.ERROR)
+        return
+    end
+
+    local agent_set = config.available_agent_set(state.opts)
+    local given_title = nil
+    local given_agent = nil
+
+    if #args == 2 then
+        local second = vim.trim(args[2] or '')
+        if second ~= '' then
+            if agent_set[second] then
+                given_agent = second
+            else
+                given_title = second
+            end
+        end
+    elseif #args == 3 then
+        local second = vim.trim(args[2] or '')
+        local third = vim.trim(args[3] or '')
+        given_title = second ~= '' and second or nil
+        given_agent = third ~= '' and third or nil
     end
 
     local agent = first_nonempty(given_agent, state.opts.default_agent, config.defaults.default_agent)
-    local configured_agent_set = config.available_agent_set(state.opts)
-    if not configured_agent_set[agent] then
+    if not agent_set[agent] then
         notify(
             'Unknown agent "' .. agent .. '". Use one of: ' .. table.concat(state.opts.available_agents, ', '),
             vim.log.levels.ERROR
@@ -362,6 +457,14 @@ function M.attach_worktree(args)
         return
     end
 
+    if not given_title then
+        given_title = worktree.current_branch(path) or vim.fn.fnamemodify(path, ':t')
+        if not given_title or given_title == '' then
+            notify('Could not derive a title from path "' .. path .. '"', vim.log.levels.ERROR)
+            return
+        end
+    end
+
     M.launch({ given_title, agent }, path)
 end
 
@@ -372,12 +475,13 @@ function M.prompt_launch_worktree()
             return
         end
 
-        vim.ui.input({ prompt = 'Branch: ' }, function(branch)
+        vim.ui.input({ prompt = 'Branch (optional, derived from title): ' }, function(branch)
             branch = vim.trim(branch or '')
             if branch == '' then
-                return
+                M.launch_worktree({ title })
+            else
+                M.launch_worktree({ title, branch })
             end
-            M.launch_worktree({ title, branch })
         end)
     end)
 end
@@ -439,7 +543,7 @@ end
 
 local function complete_attach_worktree(arg_lead, cmd_line)
     local args = vim.split(cmd_line, '%s+', { trimempty = true })
-    if #args == 3 then
+    if #args == 2 then
         return vim.fn.getcompletion(arg_lead, 'dir')
     end
     if #args == 4 then

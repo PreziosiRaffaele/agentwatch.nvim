@@ -51,7 +51,7 @@ With Neovim's built-in package manager, add the plugin in your `init.lua`:
 
 ```lua
 vim.pack.add({
-    { src = 'https://github.com/PreziosiRaffaele/agent-watch-nvim' },
+    { src = 'https://github.com/PreziosiRaffaele/agentwatch.nvim' },
 })
 
 require('agent-watch').setup()
@@ -65,32 +65,32 @@ With lazy.nvim, add a plugin spec like this:
 
 ```lua
 return {
-    'PreziosiRaffaele/agent-watch-nvim',
+    'PreziosiRaffaele/agentwatch.nvim',
     event = 'VeryLazy',
 }
 ```
 
 ## Workflows
 
-**Watch active agents from Neovim**
+**Watch agents from Neovim**
 
-Run `:AgentWatch` to open a bottom scratch buffer with the agents attached to the
-current Neovim server. The view refreshes while it is visible and filters out
-agents from other Neovim sessions, so the list stays focused on the workspace
-you are editing.
+Run `:AgentWatch` to open a bottom scratch buffer with the agents launched from
+the current Neovim session, plus resumable `exited` agents from the same project.
+The view refreshes while it is visible and filters out agents from other Neovim
+sessions, so the list stays focused on the workspace you are editing.
 
 **Launch an agent without leaving the editor**
 
 Use `:AgentWatchLaunch <title> [agent]` or press `a` in the watch buffer. The
 plugin opens a terminal using your configured layout and starts `aw <agent>`
-inside it, passing the Neovim server and buffer number so `agent-watchd` can link
-the process back to this editor.
+inside it, passing a unique client reference that lets this session recognise
+the agent's terminal in the daemon's rows.
 
 **Keep parallel agent tasks separated with worktrees**
 
-Use `:AgentWatchLaunchWorktree <title> <branch> [agent]` to create a Git
+Use `:AgentWatchLaunchWorktree <title> [branch] [agent]` to create a Git
 worktree and start an agent inside it. Use
-`:AgentWatchAttachWorktree <title> <path> [agent]` when the worktree already
+`:AgentWatchAttachWorktree <path> [title] [agent]` when the worktree already
 exists. This is the main flow for giving each agent an isolated checkout while
 keeping all of them visible from one editor. When a linked worktree opens in a
 Neovim tab, Agent Watch labels the tab as `[title] fileName` unless you already
@@ -102,36 +102,44 @@ Use `:AgentWatchToggleLatest` or the default `<C-\><C-\>` mapping to toggle the
 latest agent terminal. From the watch buffer, press `<CR>` on any row to open
 that agent's terminal directly.
 
+**Resume agents from a previous Neovim session**
+
+Closing Neovim does not lose your agents: resumable sessions stay tracked by
+the daemon as `exited`. Reopen Neovim in the same project (the main repository
+or any of its worktrees) and the watch buffer lists them again. Press `<CR>` on
+an `exited` row to resume the agent in its original folder, attached to the
+current session. Press `dd` on it to delete the record instead.
+
 **Manage agent rows as tasks evolve**
 
 Rename the selected agent with `r` or `:AgentWatchRename [title]`. Open the
-selected row's worktree with `o`. Remove an agent terminal buffer with `dd`, or
-delete a linked Git worktree with `dw` after confirmation.
+selected row's worktree with `o`. Delete an agent with `dd` after confirmation,
+or delete a linked Git worktree and its agent with `dw` after confirmation.
 
 ## Commands
 
-- `:AgentWatch` opens or refreshes a bottom scratch buffer showing agents attached to the current Neovim server.
+- `:AgentWatch` opens or refreshes a bottom scratch buffer showing agents launched from the current Neovim session, plus resumable `exited` agents from the same project.
 - `:AgentWatchToggle` toggles the Agent Watch window visibility. When opened, the view refreshes while it is visible.
 - `:AgentWatchToggleLatest` toggles the latest agent terminal. It closes the terminal when visible and reopens it when hidden.
 - `:AgentWatchLaunch <title> [agent]` opens a terminal and starts `aw <agent>` directly inside it.
-- `:AgentWatchLaunchWorktree <title> <branch> [agent]` creates a Git worktree and starts a tracked agent inside it.
-- `:AgentWatchAttachWorktree <title> <path> [agent]` starts a tracked agent inside an existing Git worktree at `<path>`.
+- `:AgentWatchLaunchWorktree <title> [branch] [agent]` creates a Git worktree and starts a tracked agent inside it. When `branch` is omitted, it is derived from `title` (lowercased and slugified).
+- `:AgentWatchAttachWorktree <path> [title] [agent]` starts a tracked agent inside an existing Git worktree at `<path>`. When `title` is omitted, it is taken from the worktree's current branch name (falling back to the path basename if HEAD is detached).
 - `:AgentWatchRename [title]` renames the selected agent row. Without a title, it prompts for one.
 
 Titles with spaces must be quoted, for example `:AgentWatchLaunch "Fix parser" codex`
 or `:AgentWatchLaunchWorktree "Fix parser" fix/parser codex`
-or `:AgentWatchAttachWorktree "Fix parser" .worktrees/fix-parser codex`.
+or `:AgentWatchAttachWorktree .worktrees/fix-parser "Fix parser" codex`.
 
 ## Mappings
 
 Inside the `AgentWatch` buffer:
 
-- `<CR>` jumps to the selected agent terminal buffer.
+- `<CR>` jumps to the selected agent terminal buffer. On an `exited` row it resumes the agent instead.
 - `a` prompts for title/agent and launches a new tracked agent.
 - `r` renames the selected agent.
 - `o` opens the selected agent's worktree. The default opener labels linked worktree tabs as `[title] fileName`.
-- `dd` force-deletes the selected agent terminal buffer.
-- `dw` deletes the selected agent's Git worktree after confirmation. It removes the worktree directory, not the branch.
+- `dd` deletes the selected agent after confirmation.
+- `dw` deletes the selected agent's Git worktree and agent record after confirmation. It removes the worktree directory, not the branch.
 - `q` closes the watch window.
 - `?` toggles the floating help window for the complete watch-buffer keymap.
 

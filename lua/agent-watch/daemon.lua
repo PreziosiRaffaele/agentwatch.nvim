@@ -76,8 +76,10 @@ local function parse_agent_rows(stdout)
     return {}
 end
 
-function M.list_agents(opts, server, callback)
-    local url = M.resolve_url(opts) .. '/agents?nvim_server=' .. encode_query(server)
+-- Lists every agent the daemon tracks; ownership and project filtering happen
+-- client-side in rows.filter, where buffer validity can actually be checked.
+function M.list_agents(opts, callback)
+    local url = M.resolve_url(opts) .. '/agents'
     vim.system({ 'curl', '-fsS', '--max-time', '5', url }, { text = true }, function(result)
         vim.schedule(function()
             if result.code ~= 0 then
@@ -115,6 +117,19 @@ function M.rename(opts, id, title, callback)
         vim.schedule(function()
             if result.code ~= 0 then
                 callback(vim.trim(result.stderr or result.stdout or 'agent-watchd rename failed'))
+                return
+            end
+            callback(nil)
+        end)
+    end)
+end
+
+function M.delete(opts, id, callback)
+    local url = M.resolve_url(opts) .. '/launches/' .. encode_query(id)
+    vim.system({ 'curl', '-fsS', '--max-time', '5', '-X', 'DELETE', url }, { text = true }, function(result)
+        vim.schedule(function()
+            if result.code ~= 0 then
+                callback(vim.trim(result.stderr or result.stdout or 'agent-watchd delete failed'))
                 return
             end
             callback(nil)

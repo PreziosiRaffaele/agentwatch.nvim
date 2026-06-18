@@ -43,7 +43,7 @@ INSTALLATION                                        *agent-watch-installation*
 With lazy.nvim: >lua
 
     {
-        dir = '~/code/agent-watch-nvim',
+        dir = '~/code/agentwatch.nvim',
         cmd = {
             'AgentWatch',
             'AgentWatchToggle',
@@ -60,8 +60,8 @@ With lazy.nvim: >lua
 ==============================================================================
 USAGE                                                      *agent-watch-usage*
 
-Open the watch buffer to see all agents attached to the current Neovim
-server: >
+Open the watch buffer to see all agents launched from the current Neovim
+session, plus resumable exited agents from the same project: >
 
     :AgentWatch
 <
@@ -79,7 +79,7 @@ worktree: >
 
 Attach to an existing worktree: >
 
-    :AgentWatchAttachWorktree "Fix parser" .worktrees/fix-parser
+    :AgentWatchAttachWorktree .worktrees/fix-parser
 <
 
 Open a selected worktree from the watch buffer with `o`. With the default
@@ -100,8 +100,8 @@ COMMANDS                                              *agent-watch-commands*
 :AgentWatch
 
     Open or refresh the watch buffer. The buffer lists all agents
-    attached to the current Neovim server with their title, state, agent
-    type, relative last-updated timestamp, and branch.
+    launched from the current Neovim session with their title, state,
+    agent type, relative last-updated timestamp, and branch.
 
                                                       *:AgentWatchToggle*
 :AgentWatchToggle
@@ -114,7 +114,8 @@ COMMANDS                                              *agent-watch-commands*
 
     Toggle the latest launched or opened agent terminal. Closes the
     terminal when it is visible, reopens it when hidden. Falls back to
-    the highest-ID agent from the daemon if local state is invalid.
+    the highest-ID daemon row with a valid terminal buffer if local
+    state is invalid.
 
                                                       *:AgentWatchLaunch*
 :AgentWatchLaunch {title} [{agent}]
@@ -129,10 +130,14 @@ COMMANDS                                              *agent-watch-commands*
 <
 
                                                 *:AgentWatchLaunchWorktree*
-:AgentWatchLaunchWorktree {title} {branch} [{agent}]
+:AgentWatchLaunchWorktree {title} [{branch}] [{agent}]
 
     Create a Git worktree on {branch} at `.worktrees/<branch-slug>` and
-    launch a tracked agent inside it. {title} and {branch} are required.
+    launch a tracked agent inside it. Only {title} is required. When
+    {branch} is omitted, it is derived from {title} (lowercased, runs of
+    non-[a-z0-9._] characters replaced by `-`). When the second
+    positional matches a configured agent name, it is treated as {agent}
+    and {branch} is derived from {title}.
 
     Example: >
 
@@ -140,14 +145,18 @@ COMMANDS                                              *agent-watch-commands*
 <
 
                                                 *:AgentWatchAttachWorktree*
-:AgentWatchAttachWorktree {title} {path} [{agent}]
+:AgentWatchAttachWorktree {path} [{title}] [{agent}]
 
     Validate the existing Git worktree at {path} and launch a tracked
-    agent inside it. {title} and {path} are required.
+    agent inside it. Only {path} is required. When {title} is omitted,
+    it is derived from the worktree's current branch name (falling back
+    to the path basename when HEAD is detached). When the second
+    positional matches a configured agent name, it is treated as {agent}
+    and {title} is derived the same way.
 
     Example: >
 
-        :AgentWatchAttachWorktree "Add tests" .worktrees/feat-tests
+        :AgentWatchAttachWorktree .worktrees/feat-tests
 <
 
                                                       *:AgentWatchRename*
@@ -164,13 +173,16 @@ Watch buffer mappings~                        *agent-watch-watch-mappings*
 These mappings are active only inside the |:AgentWatch| buffer.
 
 Key    Action ~
-<CR>   Jump to the selected agent's terminal buffer.
+<CR>   Jump to the selected agent's terminal buffer when it is still
+       available.
 a      Prompt for title and agent, then launch a new tracked agent.
 r      Rename the selected agent (prompts for title).
 o      Open the selected agent's worktree (Neovim tab or tmux window,
        depending on |agent-watch-config-worktree-opener|).
-dd     Force-delete the selected agent's terminal buffer.
-dw     Delete the selected agent's Git worktree after confirmation.
+dd     Delete the selected agent after confirmation. Also force-deletes
+       its terminal buffer if it still exists.
+dw     Delete the selected agent's Git worktree and agent record after
+       confirmation.
        Note: removes the worktree directory, not the branch.
 q      Close the watch window.
 ?      Toggle the floating help window showing all watch-buffer keys.
@@ -334,7 +346,7 @@ ABOUT                                                      *agent-watch-about*
 
 Author:  Raffaele Preziosi <rafforider@gmail.com>
 License: MIT License
-Source:  https://github.com/PreziosiRaffaele/agent-watch-nvim
+Source:  https://github.com/PreziosiRaffaele/agentwatch.nvim
 
 ==============================================================================
 vim:tw=78 ts=8 sts=4 sw=4 noet fdm=marker ft=help

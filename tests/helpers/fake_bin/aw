@@ -1,0 +1,8 @@
+#!/bin/sh
+# Fake `aw` CLI for tests. Records the argv it was launched with so tests can
+# assert the flags agent-watch.nvim passes, then exits cleanly. It never starts
+# a real agent or daemon.
+if [ -n "$AW_LAUNCH_LOG" ]; then
+    printf '%s\n' "$*" >>"$AW_LAUNCH_LOG"
+fi
+exit 0
