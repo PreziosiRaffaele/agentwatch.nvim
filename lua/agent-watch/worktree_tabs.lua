@@ -10,10 +10,9 @@ local function escape_tabline(value)
     return tostring(value or ''):gsub('%%', '%%%%')
 end
 
-local function current_tab_buffer(tabnr)
-    local buffers = vim.fn.tabpagebuflist(tabnr)
-    local winnr = vim.fn.tabpagewinnr(tabnr)
-    return buffers[winnr]
+local function current_tab_buffer(tabpage)
+    local win = vim.api.nvim_tabpage_get_win(tabpage)
+    return vim.api.nvim_win_get_buf(win)
 end
 
 local function buffer_label(bufnr)
@@ -29,8 +28,9 @@ local function buffer_label(bufnr)
     return vim.fn.fnamemodify(name, ':t')
 end
 
-local function tab_modified(tabnr)
-    for _, bufnr in ipairs(vim.fn.tabpagebuflist(tabnr)) do
+local function tab_modified(tabpage)
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(tabpage)) do
+        local bufnr = vim.api.nvim_win_get_buf(win)
         if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].modified then
             return true
         end
@@ -39,16 +39,16 @@ local function tab_modified(tabnr)
     return false
 end
 
-local function tab_label(tabnr)
-    local bufnr = current_tab_buffer(tabnr)
+local function tab_label(tabpage)
+    local bufnr = current_tab_buffer(tabpage)
     local label = buffer_label(bufnr)
-    local title = vim.t[tabnr].agent_watch_title
+    local ok, title = pcall(vim.api.nvim_tabpage_get_var, tabpage, 'agent_watch_title')
 
-    if type(title) == 'string' and title ~= '' then
+    if ok and type(title) == 'string' and title ~= '' then
         label = '[' .. title .. '] ' .. label
     end
 
-    if tab_modified(tabnr) then
+    if tab_modified(tabpage) then
         label = label .. ' +'
     end
 
@@ -60,13 +60,12 @@ function M.mark_current(row)
 end
 
 function M.render()
-    local current = vim.fn.tabpagenr()
-    local last = vim.fn.tabpagenr('$')
+    local current = vim.api.nvim_get_current_tabpage()
     local parts = {}
 
-    for tabnr = 1, last do
-        local highlight = tabnr == current and '%#TabLineSel#' or '%#TabLine#'
-        table.insert(parts, '%' .. tabnr .. 'T' .. highlight .. ' ' .. escape_tabline(tab_label(tabnr)) .. ' ')
+    for tabnr, tabpage in ipairs(vim.api.nvim_list_tabpages()) do
+        local highlight = tabpage == current and '%#TabLineSel#' or '%#TabLine#'
+        table.insert(parts, '%' .. tabnr .. 'T' .. highlight .. ' ' .. escape_tabline(tab_label(tabpage)) .. ' ')
     end
 
     table.insert(parts, '%#TabLineFill#%T')

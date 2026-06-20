@@ -73,4 +73,17 @@ T['o opens the worktree in a tab and labels it [title] fileName'] = function()
     expect.equality(tabline:find('[fix login]', 1, true) ~= nil, true)
 end
 
+T['render uses tabpage handles after a tab is closed'] = function()
+    child.lua([[
+        vim.cmd('tabnew')
+        vim.t.agent_watch_title = 'closed'
+        vim.cmd('tabnew')
+        vim.t.agent_watch_title = 'kept'
+        vim.cmd('2tabclose')
+    ]])
+
+    local tabline = child.lua_get([[require('agent-watch.worktree_tabs').render()]])
+    eq(tabline:find('[kept]', 1, true) ~= nil, true)
+end
+
 return T
