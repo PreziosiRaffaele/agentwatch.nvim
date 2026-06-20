@@ -39,6 +39,18 @@ T['AgentWatchLaunch invokes the CLI with the expected flags'] = function()
     expect.equality(log:find('--client-ref', 1, true) ~= nil, true)
 end
 
+T['AgentWatchLaunch supports pi'] = function()
+    child.cmd('AgentWatchLaunch investigate pi')
+    local got = h.wait_for(
+        child,
+        'vim.fn.filereadable(vim.env.AW_LAUNCH_LOG) == 1 and vim.fn.getfsize(vim.env.AW_LAUNCH_LOG) > 0'
+    )
+    eq(got, true)
+
+    local log = launch_log(child)
+    expect.equality(log:find('pi --title investigate', 1, true) ~= nil, true)
+end
+
 T['AgentWatchLaunch creates a buffer remembered as the latest agent'] = function()
     child.cmd('AgentWatchLaunch login claude')
     h.wait_for(child, 'vim.fn.filereadable(vim.env.AW_LAUNCH_LOG) == 1 and vim.fn.getfsize(vim.env.AW_LAUNCH_LOG) > 0')

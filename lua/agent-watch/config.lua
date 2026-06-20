@@ -10,7 +10,7 @@ M.defaults = {
     watch_interval = 1000,
     worktree_tab_label = true,
     default_agent = 'claude',
-    available_agents = { 'codex', 'agent', 'claude' },
+    available_agents = { 'codex', 'agent', 'claude', 'pi' },
     terminal = {
         layout = 'side',
         side = 'right',
@@ -26,7 +26,7 @@ M.defaults = {
     },
 }
 
-local supported_agents = { 'codex', 'agent', 'claude' }
+local supported_agents = { 'codex', 'agent', 'claude', 'pi' }
 local supported_agent_set = {}
 for _, agent in ipairs(supported_agents) do
     supported_agent_set[agent] = true
@@ -55,14 +55,17 @@ local function validate_agent_config(opts)
     end
 
     if type(configured_agents) ~= 'table' or vim.tbl_isempty(configured_agents) then
-        notify('Invalid available_agents config. Use a non-empty list of: codex, agent, claude.', vim.log.levels.ERROR)
+        notify(
+            'Invalid available_agents config. Use a non-empty list of: codex, agent, claude, pi.',
+            vim.log.levels.ERROR
+        )
         configured_agents = vim.deepcopy(M.defaults.available_agents)
     end
 
     for _, agent in ipairs(configured_agents) do
         if not supported_agent_set[agent] then
             notify(
-                'Unknown available_agents value "' .. tostring(agent) .. '". Allowed: codex, agent, claude.',
+                'Unknown available_agents value "' .. tostring(agent) .. '". Allowed: codex, agent, claude, pi.',
                 vim.log.levels.ERROR
             )
             configured_agents = vim.deepcopy(M.defaults.available_agents)
