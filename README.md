@@ -159,7 +159,7 @@ require('agent-watch').setup({
     cli = 'aw',
     daemon_url = nil,
     default_agent = 'claude',
-    available_agents = { 'codex', 'agent', 'claude' },
+    available_agents = { 'codex', 'agent', 'claude', 'pi' },
     height = 8,
     fixed_height = true,
     watch_interval = 1000,
@@ -181,7 +181,7 @@ require('agent-watch').setup({
 `fixed_height` controls whether the watch window keeps a fixed height (`winfixheight`).
 `daemon_url` overrides the `agent-watchd` URL. When unset, the plugin reads `~/.agent-watch/daemon.json` and then falls back to `http://127.0.0.1:3847`.
 `available_agents` controls which agents can be selected/launched in your space.
-Allowed values are: `codex`, `agent`, `claude`.
+Allowed values are: `codex`, `agent`, `claude`, `pi` (`agent` is Cursor).
 If `available_agents` or `default_agent` are misconfigured, the plugin surfaces an error and falls back to a safe value.
 `terminal.layout` controls where launched and selected agent terminals open. Use `float`, `side`, or `tab`.
 For `side`, `terminal.side` chooses `right` or `left`, and `terminal.width` controls the split width.

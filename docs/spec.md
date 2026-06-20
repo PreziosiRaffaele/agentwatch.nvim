@@ -118,7 +118,7 @@ require('agent-watch').setup({
     watch_interval = 1000,          -- daemon polling interval in ms
     worktree_tab_label = true,      -- label nvim worktree tabs as [title] fileName
     default_agent  = 'claude',      -- pre-selected agent in the launch prompt
-    available_agents = { 'codex', 'agent', 'claude' }, -- agents shown in the picker
+    available_agents = { 'codex', 'agent', 'claude', 'pi' }, -- agents shown in the picker
     terminal = {
         layout       = 'side',       -- 'float', 'side', or 'tab'
         side         = 'right',      -- side split direction: 'right' or 'left'
@@ -134,7 +134,7 @@ require('agent-watch').setup({
 })
 ```
 
-`available_agents` must be a non-empty subset of `{ 'codex', 'agent', 'claude' }`. `default_agent` must be in `available_agents`. Both are validated at setup time; misconfigurations surface an error and fall back to defaults.
+`available_agents` must be a non-empty subset of `{ 'codex', 'agent', 'claude', 'pi' }` (where `agent` is Cursor). `default_agent` must be in `available_agents`. Both are validated at setup time; misconfigurations surface an error and fall back to defaults.
 
 `terminal.layout` must be one of `float`, `side`, or `tab`. Invalid terminal layout settings surface an error and fall back to defaults.
 

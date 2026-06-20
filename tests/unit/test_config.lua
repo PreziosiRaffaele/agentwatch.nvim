@@ -9,7 +9,7 @@ T['build()'] = MiniTest.new_set()
 T['build()']['returns defaults for an empty table'] = function()
     local opts = config.build({})
     eq(opts.default_agent, 'claude')
-    eq(opts.available_agents, { 'codex', 'agent', 'claude' })
+    eq(opts.available_agents, { 'codex', 'agent', 'claude', 'pi' })
     eq(opts.terminal.layout, 'side')
     eq(opts.worktree_opener, 'nvim')
     eq(opts.watch_interval, 1000)
@@ -23,12 +23,12 @@ end
 
 T['build()']['rejects an unknown agent in available_agents'] = function()
     local opts = config.build({ available_agents = { 'claude', 'bogus' } })
-    eq(opts.available_agents, { 'codex', 'agent', 'claude' })
+    eq(opts.available_agents, { 'codex', 'agent', 'claude', 'pi' })
 end
 
 T['build()']['rejects an empty available_agents'] = function()
     local opts = config.build({ available_agents = {} })
-    eq(opts.available_agents, { 'codex', 'agent', 'claude' })
+    eq(opts.available_agents, { 'codex', 'agent', 'claude', 'pi' })
 end
 
 T['build()']['falls back default_agent into available_agents'] = function()
@@ -53,6 +53,12 @@ end
 T['build()']['rejects an invalid worktree_opener'] = function()
     eq(config.build({ worktree_opener = 'emacs' }).worktree_opener, 'nvim')
     eq(config.build({ worktree_opener = 'tmux' }).worktree_opener, 'tmux')
+end
+
+T['build()']['accepts pi as a configured agent'] = function()
+    local opts = config.build({ available_agents = { 'pi' }, default_agent = 'pi' })
+    eq(opts.available_agents, { 'pi' })
+    eq(opts.default_agent, 'pi')
 end
 
 T['available_agent_set()'] = MiniTest.new_set()
