@@ -9,7 +9,7 @@ T['build()'] = MiniTest.new_set()
 T['build()']['returns defaults for an empty table'] = function()
     local opts = config.build({})
     eq(opts.default_agent, 'claude')
-    eq(opts.available_agents, { 'codex', 'agent', 'claude' })
+    eq(opts.available_agents, { 'codex', 'agent', 'claude', 'pi' })
     eq(opts.terminal.layout, 'side')
     eq(opts.worktree_opener, 'nvim')
     eq(opts.watch_interval, 1000)
@@ -23,12 +23,18 @@ end
 
 T['build()']['rejects an unknown agent in available_agents'] = function()
     local opts = config.build({ available_agents = { 'claude', 'bogus' } })
-    eq(opts.available_agents, { 'codex', 'agent', 'claude' })
+    eq(opts.available_agents, { 'codex', 'agent', 'claude', 'pi' })
 end
 
 T['build()']['rejects an empty available_agents'] = function()
     local opts = config.build({ available_agents = {} })
-    eq(opts.available_agents, { 'codex', 'agent', 'claude' })
+    eq(opts.available_agents, { 'codex', 'agent', 'claude', 'pi' })
+end
+
+T['build()']['accepts pi as an available and default agent'] = function()
+    local opts = config.build({ available_agents = { 'pi' }, default_agent = 'pi' })
+    eq(opts.available_agents, { 'pi' })
+    eq(opts.default_agent, 'pi')
 end
 
 T['build()']['falls back default_agent into available_agents'] = function()
@@ -58,9 +64,10 @@ end
 T['available_agent_set()'] = MiniTest.new_set()
 
 T['available_agent_set()']['builds a lookup of configured agents'] = function()
-    local set = config.available_agent_set({ available_agents = { 'codex', 'claude' } })
+    local set = config.available_agent_set({ available_agents = { 'codex', 'claude', 'pi' } })
     eq(set.codex, true)
     eq(set.claude, true)
+    eq(set.pi, true)
     eq(set.agent, nil)
 end
 

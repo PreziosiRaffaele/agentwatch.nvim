@@ -209,7 +209,7 @@ Pass options to `setup()`: >lua
         cli = 'aw',
         daemon_url = nil,
         default_agent = 'claude',
-        available_agents = { 'codex', 'agent', 'claude' },
+        available_agents = { 'codex', 'agent', 'claude', 'pi' },
         height = 8,
         fixed_height = true,
         watch_interval = 1000,
@@ -250,12 +250,12 @@ default_agent (default: `'claude'`)
     |agent-watch-config-available-agents|.
 
                                        *agent-watch-config-available-agents*
-available_agents (default: `{ 'codex', 'agent', 'claude' }`)
+available_agents (default: `{ 'codex', 'agent', 'claude', 'pi' }`)
 
     List of agents available in the picker and accepted as the `[agent]`
     argument to launch commands. Allowed values: `'codex'`, `'agent'`,
-    `'claude'`. If misconfigured, the plugin surfaces an error and falls
-    back to the default list.
+    `'claude'`, `'pi'`. If misconfigured, the plugin surfaces an error and
+    falls back to the default list.
 
                                                  *agent-watch-config-height*
 height (default: `8`)
