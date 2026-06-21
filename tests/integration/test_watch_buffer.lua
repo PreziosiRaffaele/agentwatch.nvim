@@ -23,6 +23,7 @@ local T = MiniTest.new_set({
                 vim.fn.writefile({ vim.json.encode({ row }) }, f)
                 vim.env.AW_DAEMON_AGENTS_FILE = f
                 vim.env.AW_DAEMON_DELETE_LOG = vim.fn.tempname()
+                vim.env.AW_DAEMON_ENSURE_LOG = vim.fn.tempname()
                 _G.watch_has = function(pat)
                     for _, b in ipairs(vim.api.nvim_list_bufs()) do
                         if vim.bo[b].filetype == 'agent-watch' then
@@ -40,6 +41,29 @@ local T = MiniTest.new_set({
         end,
     },
 })
+
+T['AgentWatch ensures the daemon before rendering rows'] = function()
+    child.cmd('AgentWatch')
+    eq(h.wait_for(child, 'vim.fn.getfsize(vim.env.AW_DAEMON_ENSURE_LOG) > 0'), true)
+    eq(h.wait_for(child, "_G.watch_has('fix login')"), true)
+
+    local log = child.lua_get([[table.concat(vim.fn.readfile(vim.env.AW_DAEMON_ENSURE_LOG), '\n')]])
+    eq(log, 'daemon ensure')
+
+    child.lua([[
+        for _, w in ipairs(vim.api.nvim_list_wins()) do
+            if vim.bo[vim.api.nvim_win_get_buf(w)].filetype == 'agent-watch' then
+                vim.api.nvim_set_current_win(w)
+            end
+        end
+    ]])
+    child.type_keys('q')
+    eq(child.lua_get([[require('agent-watch.watch_window').visible()]]), false)
+
+    child.cmd('AgentWatch')
+    eq(h.wait_for(child, "_G.watch_has('fix login')"), true)
+    eq(child.lua_get([[#vim.fn.readfile(vim.env.AW_DAEMON_ENSURE_LOG)]]), 1)
+end
 
 T['AgentWatch renders the filtered daemon rows'] = function()
     child.cmd('AgentWatch')
@@ -89,6 +113,13 @@ T['AgentWatch surfaces a daemon failure'] = function()
     child.lua('vim.env.AW_DAEMON_FAIL = "1"')
     child.lua('require("agent-watch").refresh()')
     eq(h.wait_for(child, "_G.watch_has('request failed')"), true)
+end
+
+T['AgentWatch surfaces a daemon ensure failure'] = function()
+    child.lua('vim.env.AW_DAEMON_ENSURE_FAIL = "1"')
+    child.cmd('AgentWatch')
+    eq(h.wait_for(child, "_G.watch_has('aw daemon ensure failed')"), true)
+    eq(h.wait_for(child, "_G.watch_has('simulated daemon ensure failure')"), true)
 end
 
 T['q closes the watch window and stops watching'] = function()

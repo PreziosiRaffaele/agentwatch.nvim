@@ -31,6 +31,51 @@ T['resolve_url()']['falls back to the default when nothing is configured']['uses
     eq(daemon.resolve_url({}), 'http://127.0.0.1:3847')
 end
 
+local function ensure_with_result(code, stdout, stderr)
+    local original = vim.system
+    local captured = nil
+    local captured_opts = nil
+    vim.system = function(cmd, opts, cb)
+        captured = cmd
+        captured_opts = opts
+        cb({ code = code or 0, stdout = stdout or '', stderr = stderr or '' })
+        return { wait = function() end }
+    end
+
+    local result = { done = false }
+    daemon.ensure({ cli = '/tmp/aw' }, function(err)
+        result.err = err
+        result.done = true
+    end)
+    vim.wait(1000, function()
+        return result.done
+    end, 10)
+
+    vim.system = original
+    result.cmd = captured
+    result.opts = captured_opts
+    return result
+end
+
+T['ensure()'] = MiniTest.new_set()
+
+T['ensure()']['runs aw daemon ensure through the configured CLI'] = function()
+    local result = ensure_with_result(0)
+    eq(result.err, nil)
+    eq(result.cmd, { '/tmp/aw', 'daemon', 'ensure' })
+    eq(result.opts.timeout, 5000)
+end
+
+T['ensure()']['reports a command failure'] = function()
+    local result = ensure_with_result(1, '', 'boom')
+    eq(result.err, 'boom')
+end
+
+T['ensure()']['reports a timeout failure'] = function()
+    local result = ensure_with_result(124, '', '')
+    eq(result.err, 'aw daemon ensure timed out')
+end
+
 -- Drive list_agents with a stubbed vim.system so we exercise the real JSON
 -- parsing without spawning curl.
 local function list_with_stdout(stdout, code)

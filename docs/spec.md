@@ -10,8 +10,8 @@ It displays live agent state from `agent-watchd` and lets the user launch, renam
 
 The plugin communicates with `agent-watchd` using two channels:
 
-- **HTTP API** (direct): agent listing (`GET /agents`, unfiltered — all row filtering happens client-side), renaming (`PATCH /launches/:id`), and deleting records (`DELETE /launches/:id`) go straight to `agent-watchd`. The daemon URL is resolved from the `daemon_url` plugin option when set, otherwise from the healthy `~/.agent-watch/daemon.json` state file written by `agent-watchd`, and finally from the default `http://127.0.0.1:3847`. 
-- **`aw` CLI**: launching and resuming agents. `aw <agent>` and `aw resume <id>` are the only operations routed through the CLI — they handle daemon startup and launch registration.
+- **HTTP API** (direct): agent listing (`GET /agents`, unfiltered — all row filtering happens client-side), renaming (`PATCH /launches/:id`), and deleting records (`DELETE /launches/:id`) go straight to `agent-watchd`. The daemon URL is resolved from the `daemon_url` plugin option when set, otherwise from the healthy `~/.agent-watch/daemon.json` state file written by `agent-watchd`, and finally from the default `http://127.0.0.1:3847`.
+- **`aw` CLI**: opening the watch buffer, launching agents, and resuming agents. Before the first HTTP poll, the plugin runs `aw daemon ensure` through the configured `cli`. A successful ensure is cached for the current Neovim session; ensure/request failures clear the cache so the next explicit watch refresh/open retries. `aw <agent>` and `aw resume <id>` are started inside terminal buffers and handle launch registration.
 
 ---
 
@@ -171,6 +171,7 @@ vim.api.nvim_set_hl(0, 'AgentWatchStateRunning', { link = 'String' })
 ```text
 AgentWatch / AgentWatchToggle
   → resolves the project root from Neovim's cwd (main worktree root, or the cwd outside a Git repo)
+  → if the daemon has not already been ensured in this Neovim session, runs: aw daemon ensure
   → resolves daemon URL from daemon_url, ~/.agent-watch/daemon.json, or default localhost
   → polls: GET <daemon_url>/agents
   → keeps rows owned by this session (client_ref matches a stamped local buffer)

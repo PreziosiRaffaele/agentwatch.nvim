@@ -76,8 +76,11 @@ return {
 
 Run `:AgentWatch` to open a bottom scratch buffer with the agents launched from
 the current Neovim session, plus resumable `exited` agents from the same project.
-The view refreshes while it is visible and filters out agents from other Neovim
-sessions, so the list stays focused on the workspace you are editing.
+Before the first refresh, the plugin runs `aw daemon ensure` so the local
+daemon is available, then caches a successful ensure for the current Neovim
+session. The view refreshes while it is visible and filters out agents from
+other Neovim sessions, so the list stays focused on the workspace you are
+editing.
 
 **Launch an agent without leaving the editor**
 
@@ -118,8 +121,8 @@ or delete a linked Git worktree and its agent with `dw` after confirmation.
 
 ## Commands
 
-- `:AgentWatch` opens or refreshes a bottom scratch buffer showing agents launched from the current Neovim session, plus resumable `exited` agents from the same project.
-- `:AgentWatchToggle` toggles the Agent Watch window visibility. When opened, the view refreshes while it is visible.
+- `:AgentWatch` opens or refreshes a bottom scratch buffer showing agents launched from the current Neovim session, plus resumable `exited` agents from the same project. The first explicit refresh/open runs `aw daemon ensure`; successful ensure is cached for the current Neovim session.
+- `:AgentWatchToggle` toggles the Agent Watch window visibility. When opened, it ensures the daemon if needed, then refreshes while visible.
 - `:AgentWatchToggleLatest` toggles the latest agent terminal. It closes the terminal when visible and reopens it when hidden.
 - `:AgentWatchLaunch <title> [agent]` opens a terminal and starts `aw <agent>` directly inside it.
 - `:AgentWatchLaunchWorktree <title> [branch] [agent]` creates a Git worktree and starts a tracked agent inside it. When `branch` is omitted, it is derived from `title` (lowercased and slugified).

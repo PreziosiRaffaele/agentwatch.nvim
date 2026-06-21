@@ -1,6 +1,7 @@
 local M = {}
 
 local default_url = 'http://127.0.0.1:3847'
+local ensure_timeout_ms = 5000
 
 local function trim_slash(url)
     return tostring(url or ''):gsub('/+$', '')
@@ -13,6 +14,20 @@ local function encode_query(value)
     return tostring(value):gsub('([^%w%-_%.~])', function(char)
         return string.format('%%%02X', string.byte(char))
     end)
+end
+
+local function result_message(result, fallback)
+    local stderr = vim.trim(result.stderr or '')
+    if stderr ~= '' then
+        return stderr
+    end
+
+    local stdout = vim.trim(result.stdout or '')
+    if stdout ~= '' then
+        return stdout
+    end
+
+    return fallback
 end
 
 local function daemon_state_url()
@@ -51,6 +66,20 @@ function M.resolve_url(opts)
     return trim_slash(daemon_state_url() or default_url)
 end
 
+function M.ensure(opts, callback)
+    vim.system({ opts.cli, 'daemon', 'ensure' }, { text = true, timeout = ensure_timeout_ms }, function(result)
+        vim.schedule(function()
+            if result.code ~= 0 then
+                local fallback = result.code == 124 and 'aw daemon ensure timed out' or 'aw daemon ensure failed'
+                callback(result_message(result, fallback))
+                return
+            end
+
+            callback(nil)
+        end)
+    end)
+end
+
 local function parse_agent_rows(stdout)
     if stdout == nil or stdout == '' then
         return {}
@@ -83,7 +112,7 @@ function M.list_agents(opts, callback)
     vim.system({ 'curl', '-fsS', '--max-time', '5', url }, { text = true }, function(result)
         vim.schedule(function()
             if result.code ~= 0 then
-                callback(nil, vim.trim(result.stderr or result.stdout or 'agent-watchd request failed'))
+                callback(nil, result_message(result, 'agent-watchd request failed'))
                 return
             end
 
@@ -116,7 +145,7 @@ function M.rename(opts, id, title, callback)
     }, { text = true }, function(result)
         vim.schedule(function()
             if result.code ~= 0 then
-                callback(vim.trim(result.stderr or result.stdout or 'agent-watchd rename failed'))
+                callback(result_message(result, 'agent-watchd rename failed'))
                 return
             end
             callback(nil)
@@ -129,7 +158,7 @@ function M.delete(opts, id, callback)
     vim.system({ 'curl', '-fsS', '--max-time', '5', '-X', 'DELETE', url }, { text = true }, function(result)
         vim.schedule(function()
             if result.code ~= 0 then
-                callback(vim.trim(result.stderr or result.stdout or 'agent-watchd delete failed'))
+                callback(result_message(result, 'agent-watchd delete failed'))
                 return
             end
             callback(nil)
