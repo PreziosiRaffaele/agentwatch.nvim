@@ -9,6 +9,7 @@ local state = {
     timer = nil,
     request_running = false,
     project_root = nil,
+    daemon_ensured = false,
 }
 
 local function stop_timer()
@@ -23,6 +24,7 @@ end
 
 function M.setup(opts)
     state.opts = opts
+    state.daemon_ensured = false
     M.stop()
 end
 
@@ -53,12 +55,43 @@ local function render_list(open, loading)
         end
 
         if err then
+            state.daemon_ensured = false
             window.set_lines({ 'agent-watchd request failed:', err }, {}, { open = open })
             return
         end
 
         local lines, rows_by_line, state_ranges = rows.render(rows.filter(agent_rows, state.project_root))
         window.set_lines(lines, rows_by_line, { open = open, state_ranges = state_ranges })
+    end)
+end
+
+local function ensure_then_render(open, loading)
+    if state.request_running then
+        return
+    end
+
+    state.request_running = true
+    if loading ~= false then
+        window.set_lines({ 'Starting agent-watchd...' }, {}, { open = open })
+    end
+
+    daemon.ensure(state.opts, function(err)
+        state.request_running = false
+
+        if not window.visible() then
+            M.stop()
+            return
+        end
+
+        if err then
+            state.daemon_ensured = false
+            M.stop()
+            window.set_lines({ 'aw daemon ensure failed:', err }, {}, { open = open })
+            return
+        end
+
+        state.daemon_ensured = true
+        render_list(open, loading)
     end)
 end
 
@@ -73,7 +106,11 @@ function M.refresh(opts)
         return
     end
 
-    render_list(open, opts.loading)
+    if open and not state.daemon_ensured then
+        ensure_then_render(open, opts.loading)
+    else
+        render_list(open, opts.loading)
+    end
 
     if opts.watch == false then
         return

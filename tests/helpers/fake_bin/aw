@@ -2,6 +2,17 @@
 # Fake `aw` CLI for tests. Records the argv it was launched with so tests can
 # assert the flags agent-watch.nvim passes, then exits cleanly. It never starts
 # a real agent or daemon.
+if [ "$1" = "daemon" ] && [ "$2" = "ensure" ]; then
+    if [ -n "$AW_DAEMON_ENSURE_LOG" ]; then
+        printf '%s\n' "$*" >>"$AW_DAEMON_ENSURE_LOG"
+    fi
+    if [ -n "$AW_DAEMON_ENSURE_FAIL" ]; then
+        echo "simulated daemon ensure failure" >&2
+        exit 1
+    fi
+    exit 0
+fi
+
 if [ -n "$AW_LAUNCH_LOG" ]; then
     printf '%s\n' "$*" >>"$AW_LAUNCH_LOG"
 fi
